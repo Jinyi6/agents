@@ -424,7 +424,13 @@ def convert_paper_format_logic(run_id: str, content_archive_path: str, format_ar
 # 4. Web API (FastAPI)
 # ==============================================================================
 
-app = FastAPI()
+app = FastAPI(
+    title="LaTeX Format Converter API",
+    description="A mock API to simulate LaTeX document conversion.",
+    version="1.0.0"
+)
+origins = ["https://agentai.top", "http://localhost:xxxx"]
+
 
 @app.post("/api/latex_format/convert")
 async def create_conversion_task(
