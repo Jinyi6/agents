@@ -429,7 +429,13 @@ app = FastAPI(
     description="A mock API to simulate LaTeX document conversion.",
     version="1.0.0"
 )
-origins = ["https://agentai.top", "http://localhost:xxxx"]
+origins = [
+    # "*",  #  "*" 表示允许所有来源，在开发阶段非常方便。
+    # 生产环境中，为了安全，您应该指定允许的来源，例如:
+    "https://agentai.top",
+    "https://www.agentai.top",
+    "https://agents-frontend.onrender.com"
+]
 
 
 @app.post("/api/latex_format/convert")
