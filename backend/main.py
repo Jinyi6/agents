@@ -43,16 +43,16 @@ from openai import OpenAI
 # --- 用户需要配置的参数 ---
 # 建议使用环境变量或安全的密钥管理服务
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
-MODEL_NAME = "gpt-4-turbo"
+OPENAI_API_BASE = os.getenv("apibase", "https://api.openai.com/v1")
+MODEL_NAME = os.getenv("qwen3", "qwen3-4b")
 
-from google.colab import userdata
-OPENAI_API_KEY = userdata.get('OPENAI_API_KEY')
-OPENAI_API_BASE = userdata.get('apibase')
-MODEL_NAME = userdata.get('qwen3')
+# from google.colab import userdata
+# OPENAI_API_KEY = userdata.get('OPENAI_API_KEY')
+# OPENAI_API_BASE = userdata.get('apibase')
+# MODEL_NAME = userdata.get('qwen3')
 
-content_file = '/content/drive/MyDrive/Scholar/latex_convert/ar.zip' 
-format_file = '/content/drive/MyDrive/Scholar/latex_convert/colm2025.zip'
+# content_file = '/content/drive/MyDrive/Scholar/latex_convert/ar.zip' 
+# format_file = '/content/drive/MyDrive/Scholar/latex_convert/colm2025.zip'
 
 # 全局重试次数
 MAX_RETRIES = 3
