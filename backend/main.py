@@ -31,7 +31,7 @@ from typing import Dict
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 import uvicorn
-
+from fastapi.middleware.cors import CORSMiddleware
 # --- AI Model Client ---
 from openai import OpenAI
 # from google.colab import userdata # 如果在Colab中运行，请取消此行注释
@@ -430,13 +430,17 @@ app = FastAPI(
     version="1.0.0"
 )
 origins = [
-    # "*",  #  "*" 表示允许所有来源，在开发阶段非常方便。
-    # 生产环境中，为了安全，您应该指定允许的来源，例如:
     "https://agentai.top",
     "https://www.agentai.top",
     "https://agents-frontend.onrender.com"
 ]
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # 允许访问的源
+    allow_credentials=True,  # 支持 cookie
+    allow_methods=["*"],  # 允许所有方法 (GET, POST, etc.)
+    allow_headers=["*"],  # 允许所有请求头
+)
 
 @app.post("/api/latex_format/convert")
 async def create_conversion_task(
