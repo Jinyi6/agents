@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIA: Do It by Agent - LaTeX Converter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif;
+            background-color: #020617; /* slate-950 */
+            color: #d1d5db; /* gray-300 */
+        }
+        .glass-pane {
+            background-color: rgba(15, 23, 42, 0.6); /* slate-900 with opacity */
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(51, 65, 85, 0.5); /* slate-700 with opacity */
+        }
+        .brand-gradient {
+            background: linear-gradient(to right, #22d3ee, #0ea5e9); /* cyan-400 to sky-500 */
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .file-drop-zone {
+            border: 2px dashed #334155; /* slate-700 */
+            transition: all 0.3s ease;
+        }
+        .file-drop-zone.dragover {
+            border-color: #22d3ee; /* cyan-400 */
+            background-color: rgba(30, 41, 59, 0.5);
+        }
+        .file-list-item {
+            background-color: #1e293b; /* slate-800 */
+        }
+        
+        .log-container {
+            font-family: 'Menlo', 'Courier New', Courier, monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-size: 0.875rem;
+        }
+        .log-entry {
+            padding: 2px 8px;
+            display: flex;
+            align-items: center;
+            border-left: 2px solid transparent;
+        }
+        .log-entry i { margin-right: 10px; flex-shrink: 0; }
+        .log-info { border-left-color: #38bdf8; color: #7dd3fc; } /* sky-400 / sky-300 */
+        .log-success { border-left-color: #4ade80; color: #86efac; } /* green-400 / green-300 */
+        .log-warning { border-left-color: #facc15; color: #fde047; } /* yellow-400 / yellow-300 */
+        .log-error { border-left-color: #f87171; color: #fca5a5; } /* red-400 / red-300 */
+        .log-fatal { background-color: #be185d; color: white; font-weight: bold; border-radius: 4px; }
+
+        .section-hidden { display: none; }
+        
+        .progress-bar-animated {
+            background-image: linear-gradient(45deg, rgba(255, 255, 255, .15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, .15) 50%, rgba(255, 255, 255, .15) 75%, transparent 75%, transparent);
+            background-size: 1rem 1rem;
+            animation: progress-bar-stripes 1s linear infinite;
+        }
+        @keyframes progress-bar-stripes {
+            from { background-position: 1rem 0; }
+            to { background-position: 0 0; }
+        }
+
+        .glow-button {
+            box-shadow: 0 0 5px #22d3ee, 0 0 10px #22d3ee, 0 0 15px #0ea5e9;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div id="app" class="max-w-7xl mx-auto p-4 md:p-8">
+        
+        <!-- Navigation Header -->
+        <header class="flex justify-between items-center py-4">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="showHome()">
+                <!-- Replace with your logo.png. Using a placeholder for now. -->
+                <img src="https://placehold.co/40x40/0f172a/22d3ee?text=D" alt="DIA Logo" class="h-10 w-10 rounded-lg">
+                <h1 class="text-2xl font-bold text-white tracking-wider">DIA</h1>
+            </div>
+            <nav class="flex items-center gap-6 text-sm font-medium">
+                <a href="javascript:void(0)" onclick="showAbout()" class="text-slate-400 hover:text-white transition-colors">About</a>
+                <!-- Replace '#' with your actual GitHub repository URL -->
+                <a href="#" target="_blank" class="text-slate-400 hover:text-white transition-colors flex items-center gap-2">
+                    GitHub
+                    <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                </a>
+            </nav>
+        </header>
+
+        <!-- Main Content: Home Page -->
+        <main id="home-section" class="mt-16 md:mt-24">
+            <div class="text-center">
+                <h2 class="text-5xl md:text-7xl font-black text-white leading-tight">Complex Tasks,<br> <span class="brand-gradient">Agent-Simplicity.</span></h2>
+                <p class="mt-6 text-lg text-slate-400 max-w-2xl mx-auto">Welcome to DIA. We build specialized agents to automate your most complex workflows. Select a tool and let our agents do the heavy lifting.</p>
+            </div>
+            
+            <div class="mt-20">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <!-- Tool Card: LaTeX Converter -->
+                    <div class="group glass-pane p-8 rounded-2xl hover:-translate-y-2 transition-transform duration-300">
+                        <div class="flex items-center justify-center h-14 w-14 rounded-full bg-slate-800 border border-slate-700 text-cyan-400">
+                           <i data-lucide="file-text" class="w-7 h-7"></i>
+                        </div>
+                        <h4 class="mt-6 text-xl font-bold text-white">LaTeX Format Converter</h4>
+                        <p class="mt-2 text-slate-400">Migrate your legacy paper to a new template automatically. No more manual reformatting.</p>
+                        <button onclick="showTool('latex')" class="mt-6 w-full text-center font-semibold py-3 px-4 rounded-lg bg-cyan-400 text-slate-900 hover:bg-cyan-300 transition-all duration-300 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20">
+                            Launch Agent
+                        </button>
+                    </div>
+
+                    <!-- Placeholder Tools -->
+                    <div class="glass-pane p-8 rounded-2xl opacity-60">
+                         <div class="flex items-center justify-center h-14 w-14 rounded-full bg-slate-800 border border-slate-700 text-slate-500">
+                             <i data-lucide="code-xml" class="w-7 h-7"></i>
+                        </div>
+                        <h4 class="mt-6 text-xl font-bold text-white">API Doc Generator</h4>
+                        <p class="mt-2 text-slate-400">Coming soon. Generate beautiful API documentation from your codebase.</p>
+                    </div>
+                     <div class="glass-pane p-8 rounded-2xl opacity-60">
+                         <div class="flex items-center justify-center h-14 w-14 rounded-full bg-slate-800 border border-slate-700 text-slate-500">
+                             <i data-lucide="database-zap" class="w-7 h-7"></i>
+                        </div>
+                        <h4 class="mt-6 text-xl font-bold text-white">SQL Query Translator</h4>
+                        <p class="mt-2 text-slate-400">Coming soon. Convert natural language into complex SQL queries.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- LaTeX Tool Page -->
+        <div id="latex-tool-section" class="section-hidden">
+            <button onclick="showHome()" class="mb-8 flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                Back to Tools
+            </button>
+            <div class="glass-pane p-8 md:p-12 rounded-2xl">
+                <!-- Content identical to previous version -->
+                <div class="text-center">
+                    <h2 class="text-4xl font-extrabold text-white">LaTeX Format Converter</h2>
+                    <p class="mt-2 text-slate-400">Upload your files and let our agent handle the rest.</p>
+                </div>
+                <div id="upload-section" class="mt-10">
+                    <div id="file-drop-zone" class="file-drop-zone p-8 rounded-xl text-center cursor-pointer">
+                        <i data-lucide="upload-cloud" class="w-16 h-16 mx-auto text-slate-500"></i>
+                        <p class="mt-4 font-semibold text-white">Drag & drop files here or click to select</p>
+                        <p class="text-sm text-slate-500">Please provide the original paper and the new template (.zip or .tar.gz)</p>
+                        <input type="file" id="content_file" class="hidden" multiple onchange="handleFileSelection(event)">
+                        <input type="file" id="format_file" class="hidden">
+                    </div>
+                    <div class="mt-6 space-y-3" id="file-list"></div>
+                    <button id="start-btn" onclick="startConversion()" class="mt-8 w-full bg-cyan-400 text-slate-900 font-bold py-4 px-4 rounded-xl hover:bg-cyan-300 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed transition-all duration-300 text-lg">
+                        Start Conversion
+                    </button>
+                </div>
+                <div id="progress-section" class="mt-10 section-hidden">
+                    <h3 id="progress-title" class="text-2xl font-bold text-center text-white">Conversion in Progress...</h3>
+                    <div class="mt-6 w-full bg-slate-700 rounded-full h-2.5">
+                        <div id="progress-bar" class="bg-cyan-400 h-2.5 rounded-full transition-all duration-500 progress-bar-animated" style="width: 0%"></div>
+                    </div>
+                    <p id="progress-text" class="text-sm text-center mt-2 text-slate-400">Initializing...</p>
+                    <div class="mt-6">
+                        <h4 class="font-semibold mb-2 text-white">Agent Log:</h4>
+                        <div id="log-output" class="w-full h-80 bg-black/50 rounded-xl p-4 overflow-y-auto log-container ring-1 ring-slate-800"></div>
+                    </div>
+                    <div id="result-section" class="mt-8 text-center section-hidden">
+                         <div id="result-icon" class="w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4"></div>
+                        <h3 id="result-title" class="text-3xl font-extrabold"></h3>
+                        <p id="result-message" class="text-slate-400 mt-2 max-w-lg mx-auto"></p>
+                        <div class="mt-6 flex gap-4 justify-center">
+                            <a id="download-btn" href="#" class="inline-flex items-center gap-2 bg-green-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-600 transition-all duration-300 shadow-lg hover:shadow-green-500/30 hidden">
+                                <i data-lucide="download" class="w-5 h-5"></i>
+                                Download Result
+                            </a>
+                            <button id="reset-btn" onclick="resetUI()" class="inline-flex items-center gap-2 bg-slate-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-slate-700 transition-all duration-300 shadow-lg hover:shadow-slate-500/30">
+                                <i data-lucide="rotate-cw" class="w-5 h-5"></i>
+                                Try Again
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- About Page -->
+        <div id="about-section" class="section-hidden">
+             <button onclick="showHome()" class="mb-8 flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                Back to Home
+            </button>
+            <div class="glass-pane p-8 md:p-12 rounded-2xl">
+                <div class="max-w-3xl mx-auto">
+                    <h2 class="text-center text-4xl font-extrabold text-white">About DIA</h2>
+                    <p class="text-center mt-2 brand-gradient font-semibold">Do It by Agent</p>
+                    
+                    <div class="mt-8 text-lg text-slate-300 space-y-4">
+                        <p>DIA is a platform dedicated to simplifying complex, multi-step tasks by wrapping them in powerful, easy-to-use agents. Our mission is to bridge the gap between powerful backend services and the people who need them, eliminating tedious manual work and accelerating productivity.</p>
+                        <p>We believe that the future of software interaction lies in goal-oriented agents that understand user intent and manage the underlying complexity. This LaTeX converter is the first of many tools designed to embody that principle.</p>
+                    </div>
+
+                    <div class="mt-12 pt-8 border-t border-slate-700/50">
+                        <h3 class="text-2xl font-bold text-white">The Creator</h3>
+                        <div class="mt-4 flex flex-col sm:flex-row items-start gap-6">
+                            <!-- Replace with your own image -->
+                            <img src="https://placehold.co/100x100/1e293b/94a3b8?text=You" alt="Author's photo" class="w-24 h-24 rounded-full border-2 border-slate-600">
+                            <div>
+                                <!-- Replace with your name -->
+                                <h4 class="text-xl font-semibold text-white">[Your Name]</h4>
+                                <!-- Replace with your personal website URL -->
+                                <a href="#" target="_blank" class="text-sky-400 hover:text-sky-300 transition-colors">your-website.com</a>
+                                <p class="mt-2 text-slate-400">
+                                    <!-- Replace with your bio -->
+                                    [A brief bio about you, the creator. Talk about your passion for AI, automation, and building helpful tools for the community.]
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        const API_BASE_URL = 'https://latex-format-api.onrender.com';
+
+        // DOM Elements
+        const homeSection = document.getElementById('home-section');
+        const latexToolSection = document.getElementById('latex-tool-section');
+        const aboutSection = document.getElementById('about-section');
+        // ... (rest of the DOM elements are the same)
+        const uploadSection = document.getElementById('upload-section');
+        const progressSection = document.getElementById('progress-section');
+        const resultSection = document.getElementById('result-section');
+        const fileDropZone = document.getElementById('file-drop-zone');
+        const fileListContainer = document.getElementById('file-list');
+        const startBtn = document.getElementById('start-btn');
+        const contentFileInput = document.getElementById('content_file');
+        const formatFileInput = document.getElementById('format_file');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const progressTitle = document.getElementById('progress-title');
+        const logOutput = document.getElementById('log-output');
+        const resultIcon = document.getElementById('result-icon');
+        const resultTitle = document.getElementById('result-title');
+        const resultMessage = document.getElementById('result-message');
+        const downloadBtn = document.getElementById('download-btn');
+        const resetBtn = document.getElementById('reset-btn');
+
+        let statusInterval;
+        let contentFile = null;
+        let formatFile = null;
+
+        // --- Page Navigation ---
+        function showHome() {
+            homeSection.classList.remove('section-hidden');
+            latexToolSection.classList.add('section-hidden');
+            aboutSection.classList.add('section-hidden');
+            resetUI();
+            window.scrollTo(0, 0);
+        }
+
+        function showTool(toolName) {
+            if (toolName === 'latex') {
+                homeSection.classList.add('section-hidden');
+                latexToolSection.classList.remove('section-hidden');
+                aboutSection.classList.add('section-hidden');
+                window.scrollTo(0, 0);
+            }
+        }
+        
+        function showAbout() {
+            homeSection.classList.add('section-hidden');
+            latexToolSection.classList.add('section-hidden');
+            aboutSection.classList.remove('section-hidden');
+            window.scrollTo(0, 0);
+        }
+        
+        function resetUI() {
+            clearInterval(statusInterval);
+            uploadSection.classList.remove('section-hidden');
+            progressSection.classList.add('section-hidden');
+            resultSection.classList.add('section-hidden');
+            
+            contentFile = null;
+            formatFile = null;
+            contentFileInput.value = '';
+            formatFileInput.value = '';
+            updateFileList();
+            
+            startBtn.disabled = true;
+            startBtn.classList.remove("glow-button");
+
+            logOutput.innerHTML = '';
+            progressBar.style.width = '0%';
+            progressText.innerText = 'Initializing...';
+            downloadBtn.classList.add('hidden');
+        }
+
+        // --- File Handling ---
+        fileDropZone.addEventListener('click', () => contentFileInput.click());
+        fileDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileDropZone.classList.add('dragover');
+        });
+        fileDropZone.addEventListener('dragleave', () => fileDropZone.classList.remove('dragover'));
+        fileDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileDropZone.classList.remove('dragover');
+            handleFileSelection(e);
+        });
+
+        function handleFileSelection(event) {
+            const files = event.target.files || event.dataTransfer.files;
+            const allowedTypes = [
+                'application/zip', 
+                'application/x-zip-compressed', 
+                'application/gzip', 
+                'application/x-gzip', 
+                'application/tar',
+                'application/x-tar'
+            ];
+
+            for (const file of files) {
+                const isAllowedType = allowedTypes.includes(file.type);
+                const isAllowedExtension = file.name.endsWith('.zip') || file.name.endsWith('.tar.gz');
+
+                if (!isAllowedType && !isAllowedExtension) {
+                    alert(`Unsupported file type: ${file.name}\nPlease upload .zip or .tar.gz files only.`);
+                    continue; // Skip this file and check the next one
+                }
+
+                if (contentFile === null) {
+                    contentFile = file;
+                } else if (formatFile === null) {
+                    formatFile = file;
+                }
+            }
+            updateFileList();
+        }
+
+        function updateFileList() {
+            fileListContainer.innerHTML = '';
+            if (contentFile) createFileListItem('Original Paper:', contentFile, 'content');
+            if (formatFile) createFileListItem('New Template:', formatFile, 'format');
+            
+            if (contentFile && formatFile) {
+                startBtn.disabled = false;
+                startBtn.classList.add("glow-button");
+            } else {
+                startBtn.disabled = true;
+                startBtn.classList.remove("glow-button");
+            }
+            lucide.createIcons();
+        }
+
+        function createFileListItem(label, file, type) {
+            const item = document.createElement('div');
+            item.className = 'file-list-item flex items-center justify-between p-3 rounded-lg';
+            item.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <i data-lucide="file-zip" class="w-5 h-5 text-slate-400"></i>
+                    <div>
+                        <p class="font-semibold text-white">${label}</p>
+                        <p class="text-sm text-slate-400">${file.name}</p>
+                    </div>
+                </div>
+                <button onclick="removeFile('${type}')" class="text-slate-500 hover:text-red-400">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            `;
+            fileListContainer.appendChild(item);
+        }
+
+        function removeFile(type) {
+            if (type === 'content') contentFile = null;
+            if (type === 'format') formatFile = null;
+            updateFileList();
+        }
+
+        // --- Core Logic ---
+        async function startConversion() {
+            if (!contentFile || !formatFile) {
+                alert('Please ensure both files are selected!');
+                return;
+            }
+
+            startBtn.disabled = true;
+            uploadSection.classList.add('section-hidden');
+            progressSection.classList.remove('section-hidden');
+            logOutput.innerHTML = '';
+            addLog('INFO: Agent initialized. Preparing file upload...', 'info');
+
+            const formData = new FormData();
+            formData.append('content_file', contentFile);
+            formData.append('format_file', formatFile);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/latex_format/convert`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({detail: 'Failed to parse error response'}));
+                    throw new Error(`HTTP Error! Status: ${response.status} - ${errorData.detail}`);
+                }
+                const data = await response.json();
+                addLog(`SUCCESS: Task created. Run ID: ${data.run_id}`, 'success');
+                addLog('INFO: Agent is now processing your documents...', 'info');
+                updateProgressBar(10, 'Task submitted...');
+                statusInterval = setInterval(() => checkStatus(data.run_id), 3000);
+            } catch (error) {
+                console.error('Upload Failed:', error);
+                addLog(`FATAL_ERROR: Could not connect to the conversion service. ${error.message}`, 'fatal');
+                showResult('error', 'Upload Failed', 'Could not start the conversion task. Please check your network and try again.');
+                startBtn.disabled = false;
+            }
+        }
+
+        async function checkStatus(runId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/latex_format/status/${runId}`);
+                if (!response.ok) {
+                    if (response.status === 404) throw new Error(`Task ID '${runId}' not found. It may have expired.`);
+                    throw new Error(`HTTP Error! Status: ${response.status}`);
+                }
+                const data = await response.json();
+                updateLogs(data.summary);
+
+                if (data.status === 'processing') {
+                    const progress = 20 + Math.min(70, (data.summary.length * 10));
+                    updateProgressBar(progress, 'Agent is working...');
+                } else if (data.status === 'completed') {
+                    clearInterval(statusInterval);
+                    updateProgressBar(100, 'Conversion complete!');
+                    showResult('success', 'Conversion Successful!', 'Your document has been successfully converted and is ready for download.', data.download_url);
+                } else if (data.status === 'failed') {
+                    clearInterval(statusInterval);
+                    updateProgressBar(100, 'Task failed.');
+                    showResult('error', 'Task Failed', 'An error occurred during processing. Please check the log for details.');
+                }
+            } catch (error) {
+                clearInterval(statusInterval);
+                console.error('Status Check Failed:', error);
+                addLog(`FATAL_ERROR: Critical error while checking status: ${error.message}`, 'fatal');
+                showResult('error', 'Status Check Failed', 'Could not retrieve task status. Please check your network.');
+            }
+        }
+        
+        function updateProgressBar(percentage, text) {
+            progressBar.style.width = `${percentage}%`;
+            progressText.innerText = text;
+        }
+
+        const logIcons = {
+            info: '<i data-lucide="arrow-right-circle" class="w-4 h-4"></i>',
+            success: '<i data-lucide="check-circle-2" class="w-4 h-4"></i>',
+            warning: '<i data-lucide="alert-triangle" class="w-4 h-4"></i>',
+            error: '<i data-lucide="x-circle" class="w-4 h-4"></i>',
+            fatal: '<i data-lucide="skull" class="w-4 h-4"></i>'
+        };
+
+        function addLog(message, type) {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.innerHTML = `${logIcons[type] || logIcons['info']}<span>${message}</span>`;
+            logOutput.appendChild(logEntry);
+            logOutput.scrollTop = logOutput.scrollHeight; 
+            lucide.createIcons();
+        }
+        
+        function updateLogs(logArray) {
+            logOutput.innerHTML = ''; 
+            logArray.forEach(log => {
+                let type = 'info';
+                if (log.startsWith('SUCCESS') || log.startsWith('🎉')) type = 'success';
+                else if (log.startsWith('WARNING')) type = 'warning';
+                else if (log.startsWith('ERROR')) type = 'error';
+                else if (log.startsWith('❌ FATAL_ERROR')) type = 'fatal';
+                addLog(log, type);
+            });
+        }
+        
+        function showResult(status, title, message, url = null) {
+            progressTitle.classList.add('section-hidden');
+            resultSection.classList.remove('section-hidden');
+            resultTitle.innerText = title;
+            resultMessage.innerText = message;
+            
+            if (status === 'success' && url) {
+                resultIcon.innerHTML = `<i data-lucide="party-popper" class="w-10 h-10 text-black"></i>`;
+                resultIcon.className = 'w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4 bg-gradient-to-br from-green-300 to-green-500';
+                resultTitle.className = "text-3xl font-extrabold text-green-400";
+                downloadBtn.href = `${API_BASE_URL}${url}`;
+                downloadBtn.classList.remove('hidden');
+            } else {
+                resultIcon.innerHTML = `<i data-lucide="alert-octagon" class="w-10 h-10 text-white"></i>`;
+                resultIcon.className = 'w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4 bg-red-500';
+                resultTitle.className = "text-3xl font-extrabold text-red-400";
+                downloadBtn.classList.add('hidden');
+            }
+            lucide.createIcons();
+        }
+        
+        // Initial state
+        resetUI();
+    </script>
+</body>
+</html>
