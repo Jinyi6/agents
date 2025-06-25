@@ -7,7 +7,7 @@ import logging
 import re
 from datetime import datetime, date
 from pathlib import Path
-
+import shutil
 from openai import AsyncOpenAI
 
 from config import (

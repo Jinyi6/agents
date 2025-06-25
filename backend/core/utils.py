@@ -2,6 +2,7 @@ import time
 import logging
 import shutil
 from pathlib import Path
+import os
 
 from config import MAX_RETRIES, log_dir
 
