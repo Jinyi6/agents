@@ -58,3 +58,4 @@ def setup_logging():
 # --- 全局变量 ---
 # 模拟数据库来存储每个任务的状态
 conversion_tasks: Dict[str, Dict] = {}
+background_tasks: Dict[str, Dict] = {}

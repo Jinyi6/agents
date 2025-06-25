@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-TZFD3J18T6"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-TZFD3J18T6');
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DIA: Do It by Agent - Done more by llm agents</title>
@@ -127,7 +136,7 @@
         <!-- Navigation Header -->
         <header class="flex justify-between items-center py-4">
             <div class="flex items-center gap-3 cursor-pointer" onclick="showHome()">
-                <img src="https://placehold.co/100x100/0f172a/22d3ee?text=DIA" alt="DIA Logo" class="h-10 w-10 rounded-lg">
+                <img src="logo.jpg" alt="DIA Logo" class="h-10 w-10 rounded-lg">
                 <h1 class="text-2xl font-bold text-white tracking-wider">DIA</h1>
                 <h1 class="text-1xl ftext-white tracking-wider">Do It by Agent</h1>
             </div>
@@ -159,12 +168,12 @@
                             <div class="mt-8 image-showcase-container flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8">
                                 <div class="text-center image-showcase-item image-showcase-item-before">
                                     <span class="text-xs font-semibold text-slate-500 tracking-widest uppercase">Before</span>
-                                    <img src="https://placehold.co/600x800/1e293b/d1d5db?text=Original+Paper.tex" alt="Before conversion example" class="mt-2 rounded-lg border-2 border-slate-700 w-full max-w-xs">
+                                    <img src="old.png" alt="Before conversion example" class="mt-2 rounded-lg border-2 border-slate-700 w-full max-w-xs">
                                 </div>
                                 <div class="my-4 md:my-0"><i data-lucide="arrow-right" class="w-12 h-12 text-cyan-400 conversion-arrow md:rotate-0 rotate-90"></i></div>
                                 <div class="text-center image-showcase-item image-showcase-item-after">
                                     <span class="text-xs font-semibold text-slate-500 tracking-widest uppercase">After</span>
-                                    <img src="https://placehold.co/600x800/1e293b/86efac?text=New+Template.tex" alt="After conversion example" class="mt-2 rounded-lg border-2 border-slate-700 w-full max-w-xs">
+                                    <img src="new.png" alt="After conversion example" class="mt-2 rounded-lg border-2 border-slate-700 w-full max-w-xs">
                                 </div>
                             </div>
                             <button onclick="showTool('latex')" class="mt-8 w-full text-center font-semibold py-3 px-4 rounded-lg bg-cyan-400 text-slate-900 hover:bg-cyan-300 transition-all duration-300 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 glow-button">
@@ -456,7 +465,7 @@
                         <div class="mt-12 pt-8 border-t border-slate-700/50">
                             <h3 class="text-2xl font-bold text-white">The Creator</h3>
                             <div class="mt-4 flex flex-col sm:flex-row items-start gap-6">
-                                <img src="https://placehold.co/128x128/1e293b/d1d5db?text=JL" alt="Author's photo" class="w-24 h-24 rounded-full border-2 border-slate-600">
+                                <img src="me.jpg" alt="Author's photo" class="w-24 h-24 rounded-full border-2 border-slate-600">
                                 <div><h4 class="text-xl font-semibold text-white">Jinyi Liu</h4><a href="https://liu.jinyi.space" target="_blank" class="text-sky-400 hover:text-sky-300 transition-colors">liu.jinyi.space</a><p class="mt-2 text-slate-400">[Jinyi Liu is a developer passionate about creating AI-driven solutions that simplify complex problems. DIA is a project born from the desire to make powerful automation accessible to everyone.]</p></div>
                             </div>
                         </div>
