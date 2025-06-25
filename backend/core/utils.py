@@ -24,6 +24,7 @@ def retry_step(func):
 
 def get_dir_size(path='.'):
     """计算目录的总大小"""
+    import os
     total = 0
     path = Path(path)
     if not path.exists():
