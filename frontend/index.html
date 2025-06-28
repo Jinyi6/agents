@@ -622,8 +622,17 @@
                         <h3 id="polisher-progress-title" class="text-2xl font-bold text-center text-white">Polishing in Progress...</h3>
                         <div class="mt-6 w-full bg-slate-700 rounded-full h-2.5"><div id="polisher-progress-bar" class="bg-cyan-400 h-2.5 rounded-full transition-all duration-500 progress-bar-animated" style="width: 0%"></div></div>
                         <p id="polisher-progress-text" class="text-sm text-center mt-2 text-slate-400">Initializing...</p>
-                        <div class="mt-6"><h4 class="font-semibold mb-2 text-white">Agent Log:</h4><div id="polisher-log-output" class="w-full h-60 bg-black/50 rounded-xl p-4 overflow-y-auto log-container ring-1 ring-slate-800"></div></div>
+                        <div class="mt-6">
+                            <div id="polisher-final-log-summary" class="hidden glass-pane p-3 rounded-lg justify-between items-center"></div>
+                            <div id="polisher-log-wrapper">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h4 class="font-semibold text-white">Agent Log:</h4>
+                                </div>
+                                <div id="polisher-log-output" class="w-full h-60 bg-black/50 rounded-xl p-4 overflow-y-auto log-container ring-1 ring-slate-800"></div>
+                            </div>
+                        </div>
                         <div id="polisher-result-section" class="mt-8 section-hidden">
+                            <div id="polisher-comparison-section" class="mb-8"></div>
                         <div id="polisher-result-display"></div>
                         <div id="polisher-suggestions-container" class="mt-6"></div>
                         <div class="mt-8 flex gap-4 justify-center">
@@ -948,6 +957,8 @@
         let polisherMode = '标准'; // Default mode
         let mustIncludeKeywords = [];
         let referenceKeywords = [];
+        let polisherOriginalText = '';
+        let polisherStyleExample = '';
 
         function setupPolisherKeywordInput(inputId, type) {
             const inputElement = document.getElementById(inputId);
@@ -1027,14 +1038,16 @@
             logOutput.innerHTML = '';
             addLog(logOutput, 'INFO: Agent initialized. Preparing request...', 'info');
 
+            polisherOriginalText = document.getElementById('draft-text').value;
+            polisherStyleExample = document.getElementById('style-example').value;
             const styleRequirements = Array.from(document.querySelectorAll('input[name="style-req"]:checked')).map(el => el.value);
 
             const payload = {
-                original_text: draftText,
+                original_text: polisherOriginalText,
                 must_include_keywords: mustIncludeKeywords,
                 reference_keywords: referenceKeywords,
                 style_requirements: styleRequirements,
-                style_example: document.getElementById('style-example').value,
+                style_example: polisherStyleExample,
                 mode: polisherMode
             };
 
@@ -1068,37 +1081,79 @@
                     clearInterval(statusInterval);
                     const resultsResponse = await fetch(`${API_BASE_URL}${data.result_url}`);
                     const resultsData = await resultsResponse.json();
-                    showPolisherResult('success', 'Polishing Complete!', 'Here are the refined versions of your text.', resultsData);
+                    showPolisherResult('success', 'Polishing Complete!', 'Here are the refined versions of your text.', resultsData, polisherOriginalText, polisherStyleExample);
                 } else if (data.status === 'failed') {
                     clearInterval(statusInterval);
-                    showPolisherResult('error', 'Task Failed', 'An error occurred during processing. Please check the log for details.');
+                    showPolisherResult('error', 'Task Failed', 'An error occurred during processing. Please check the log for details.', null, polisherOriginalText, polisherStyleExample);
                 }
             } catch (error) {
                 clearInterval(statusInterval);
                 addLog(logOutput, `FATAL_ERROR: Error while checking status: ${error.message}`, 'fatal');
-                showPolisherResult('error', 'Status Check Failed', 'Could not retrieve task status.');
+                showPolisherResult('error', 'Status Check Failed', 'Could not retrieve task status.', null, polisherOriginalText, polisherStyleExample);
             }
         }
 
-        function showPolisherResult(status, title, message, data = null) {
+        function showPolisherResult(status, title, message, data = null, originalText = '', styleExample = '') {
             document.getElementById('polisher-progress-title').classList.add('section-hidden');
             document.getElementById('polisher-result-section').classList.remove('section-hidden');
 
             const resultDisplay = document.getElementById('polisher-result-display');
             const suggestionsContainer = document.getElementById('polisher-suggestions-container');
+            const comparisonSection = document.getElementById('polisher-comparison-section');
+            const logWrapper = document.getElementById('polisher-log-wrapper');
+            const finalLogSummary = document.getElementById('polisher-final-log-summary');
+            
             resultDisplay.innerHTML = '';
             suggestionsContainer.innerHTML = '';
+            comparisonSection.innerHTML = '';
+            finalLogSummary.innerHTML = '';
             
+            // Handle Log Collapsing
+            logWrapper.classList.add('hidden');
+            const logOutput = document.getElementById('polisher-log-output');
+            const lastLogEntry = logOutput.lastElementChild?.outerHTML || `<div class="log-entry log-${status === 'success' ? 'success' : 'error'}"><span>${message}</span></div>`;
+
+            finalLogSummary.innerHTML = `
+                <div class="flex-grow">${lastLogEntry}</div>
+                <button onclick="
+                    const wrapper = document.getElementById('polisher-log-wrapper'); 
+                    wrapper.classList.toggle('hidden'); 
+                    this.textContent = wrapper.classList.contains('hidden') ? 'Show Full Log' : 'Hide Full Log';
+                " class="text-sm text-cyan-400 hover:text-white transition-colors ml-4">Show Full Log</button>
+            `;
+            finalLogSummary.classList.remove('hidden');
+
+            // Display Original vs. Reference
+            comparisonSection.innerHTML = `
+                <h3 class="text-2xl font-bold text-white mb-4">Review Your Inputs</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-sm font-semibold text-slate-400 tracking-wider uppercase mb-2">ORIGINAL DRAFT</h4>
+                        <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700 text-slate-300 text-sm" style="max-height: 200px; overflow-y: auto;">
+                            ${originalText.replace(/\n/g, '<br>') || '<p class="text-slate-500">No original text provided.</p>'}
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-semibold text-slate-400 tracking-wider uppercase mb-2">STYLE REFERENCE</h4>
+                        <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700 text-slate-300 text-sm" style="max-height: 200px; overflow-y: auto;">
+                            ${styleExample.replace(/\n/g, '<br>') || '<p class="text-slate-500">No style reference provided.</p>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Display Polished Versions (Responsive Grid)
             if (status === 'success' && data && data.results) {
-                let resultsHtml = '<h3 class="text-2xl font-bold text-white mb-4">Polished Versions</h3><div class="space-y-4">';
+                let resultsHtml = '<h3 class="text-2xl font-bold text-white mt-8 mb-4">Polished Versions</h3>';
+                resultsHtml += '<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">';
                 data.results.forEach((res, index) => {
                     resultsHtml += `
-                        <div class="glass-pane p-4 rounded-lg">
+                        <div class="glass-pane p-4 rounded-lg flex flex-col">
                             <div class="flex justify-between items-center mb-2">
                                 <span class="font-semibold text-cyan-400">Option ${index + 1}</span>
                                 <button onclick="copyToClipboard(this, '${btoa(encodeURIComponent(res))}')" class="flex items-center gap-2 text-sm text-slate-400 hover:text-white"><i data-lucide="clipboard" class="w-4 h-4"></i><span>Copy</span></button>
                             </div>
-                            <p class="text-slate-300">${res.replace(/\n/g, '<br>')}</p>
+                            <p class="text-slate-300 flex-grow">${res.replace(/\n/g, '<br>')}</p>
                         </div>
                     `;
                 });
@@ -1115,7 +1170,7 @@
                 }
 
             } else {
-                resultDisplay.innerHTML = `<div class="text-center p-8 bg-red-900/20 rounded-lg"><i data-lucide="alert-triangle" class="w-12 h-12 mx-auto text-red-400"></i><h3 class="mt-4 text-2xl font-bold text-red-400">${title}</h3><p class="mt-2 text-red-300">${message}</p></div>`;
+                resultDisplay.innerHTML = `<div class="text-center mt-8 p-8 bg-red-900/20 rounded-lg"><i data-lucide="alert-triangle" class="w-12 h-12 mx-auto text-red-400"></i><h3 class="mt-4 text-2xl font-bold text-red-400">${title}</h3><p class="mt-2 text-red-300">${message}</p></div>`;
             }
             lucide.createIcons();
         }
@@ -1152,6 +1207,15 @@
             document.getElementById('polisher-start-btn').onclick = startPolishing;
             setupPolisherKeywordInput('must-include-keyword-input', 'must-include');
             setupPolisherKeywordInput('reference-keyword-input', 'reference');
+
+            // Reset new/modified elements
+            document.getElementById('polisher-comparison-section').innerHTML = '';
+            document.getElementById('polisher-result-display').innerHTML = '';
+            document.getElementById('polisher-suggestions-container').innerHTML = '';
+            document.getElementById('polisher-final-log-summary').classList.add('hidden');
+            document.getElementById('polisher-log-wrapper').classList.remove('hidden');
+            polisherOriginalText = '';
+            polisherStyleExample = '';
         }
         
         document.addEventListener('DOMContentLoaded', initializePage);

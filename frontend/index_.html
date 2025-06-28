@@ -42,7 +42,7 @@
         .file-list-item {
             background-color: #1e293b; /* slate-800 */
         }
-          
+        
         .log-container {
             font-family: 'Menlo', 'Courier New', Courier, monospace;
             white-space: pre-wrap;
@@ -63,7 +63,7 @@
         .log-fatal { background-color: #be185d; color: white; font-weight: bold; border-radius: 4px; } 
 
         .section-hidden, .modal-hidden { display: none !important; }
-          
+        
         .progress-bar-animated {
             background-image: linear-gradient(45deg, rgba(255, 255, 255, .15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, .15) 50%, rgba(255, 255, 255, .15) 75%, transparent 75%, transparent);
             background-size: 1rem 1rem;
@@ -183,60 +183,60 @@
                 <h2 class="text-5xl md:text-7xl font-black text-white leading-tight">Complex Tasks,<br> <span class="brand-gradient">Agent-Simplicity.</span></h2>
                 <p class="mt-6 text-lg text-slate-400 max-w-xl mx-auto">Why do it yourself when you can <span class="text-white font-medium">Do It by Agent</span>? DIA provides specialized AI agents that turn your complex goals into simple results. Let's get started.</p>
             </div>
-              
+            
             <div class="mt-20 flex flex-col lg:flex-row gap-12">
                 <div id="showcase-area" class="w-full lg:w-3/4">
                     <div id="latex-showcase" class="showcase-item">
                         <div class="glass-pane p-6 md:p-8 rounded-2xl">
-                             <h3 class="text-2xl font-bold text-white">LaTeX Format Converter</h3>
-                            <p class="text-slate-400 mt-1">Migrate your legacy paper to a new template easily.</p>
-                            <div class="mt-8 image-showcase-container flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8">
-                                <div class="text-center image-showcase-item image-showcase-item-before">
-                                    <span class="text-xs font-semibold text-slate-500 tracking-widest uppercase">NeurIPS Template</span>
-                                    <img src="old.png" alt="Before conversion example" class="mt-2 rounded-lg border-2 border-slate-700 w-full max-w-xs">
+                                <h3 class="text-2xl font-bold text-white">LaTeX Format Converter</h3>
+                                <p class="text-slate-400 mt-1">Migrate your legacy paper to a new template easily.</p>
+                                <div class="mt-8 image-showcase-container flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8">
+                                    <div class="text-center image-showcase-item image-showcase-item-before">
+                                        <span class="text-xs font-semibold text-slate-500 tracking-widest uppercase">NeurIPS Template</span>
+                                        <img src="old.png" alt="Before conversion example" class="mt-2 rounded-lg border-2 border-slate-700 w-full max-w-xs">
+                                    </div>
+                                    <div class="my-4 md:my-0"><i data-lucide="arrow-right" class="w-12 h-12 text-cyan-400 conversion-arrow md:rotate-0 rotate-90"></i></div>
+                                    <div class="text-center image-showcase-item image-showcase-item-after">
+                                        <span class="text-xs font-semibold text-slate-500 tracking-widest uppercase">COLM Template</span>
+                                        <img src="new.png" alt="After conversion example" class="mt-2 rounded-lg border-2 border-slate-700 w-full max-w-xs">
+                                    </div>
                                 </div>
-                                <div class="my-4 md:my-0"><i data-lucide="arrow-right" class="w-12 h-12 text-cyan-400 conversion-arrow md:rotate-0 rotate-90"></i></div>
-                                <div class="text-center image-showcase-item image-showcase-item-after">
-                                    <span class="text-xs font-semibold text-slate-500 tracking-widest uppercase">COLM Template</span>
-                                    <img src="new.png" alt="After conversion example" class="mt-2 rounded-lg border-2 border-slate-700 w-full max-w-xs">
-                                </div>
-                            </div>
-                            <button onclick="showTool('latex')" class="mt-8 w-full text-center font-semibold py-3 px-4 rounded-lg bg-cyan-400 text-slate-900 hover:bg-cyan-300 transition-all duration-300 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 glow-button">
-                                Launch Agent
-                            </button>
+                                <button onclick="showTool('latex')" class="mt-8 w-full text-center font-semibold py-3 px-4 rounded-lg bg-cyan-400 text-slate-900 hover:bg-cyan-300 transition-all duration-300 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 glow-button">
+                                    Launch Agent
+                                </button>
                         </div>
                     </div>
 
                     <div id="arxiv-showcase" class="showcase-item section-hidden">
                         <div class="glass-pane p-6 md:p-8 rounded-2xl">
-                             <h3 class="text-2xl font-bold text-white">ACL: ArXivCooL</h3>
-                            <p class="text-slate-400 mt-1">Search arXiv papers by keywords and date, optionally translate, and generate a CSV report.</p>
-                             <div class="mt-8 h-full min-h-[400px] flex items-center justify-center">
-                                <i data-lucide="file-search-2" class="w-24 h-24 text-cyan-500"></i>
-                            </div>
-                             <button onclick="showTool('arxiv')" class="mt-8 w-full text-center font-semibold py-3 px-4 rounded-lg bg-cyan-400 text-slate-900 hover:bg-cyan-300 transition-all duration-300 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 glow-button">
-                                Launch Agent
-                            </button>
+                                <h3 class="text-2xl font-bold text-white">ACL: ArXivCooL</h3>
+                                <p class="text-slate-400 mt-1">Search arXiv papers by keywords and date, optionally translate, and generate a CSV report.</p>
+                                <div class="mt-8 h-full min-h-[400px] flex items-center justify-center">
+                                    <i data-lucide="file-search-2" class="w-24 h-24 text-cyan-500"></i>
+                                </div>
+                                <button onclick="showTool('arxiv')" class="mt-8 w-full text-center font-semibold py-3 px-4 rounded-lg bg-cyan-400 text-slate-900 hover:bg-cyan-300 transition-all duration-300 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 glow-button">
+                                    Launch Agent
+                                </button>
                         </div>
                     </div>
 
                     <div id="polisher-showcase" class="showcase-item section-hidden">
                         <div class="glass-pane p-6 md:p-8 rounded-2xl flex flex-col">
-                             <h3 class="text-2xl font-bold text-white">Manuscript Polisher</h3>
-                            <p class="text-slate-400 mt-1">Automatically refine your writing for clarity, tone, and style.</p>
-                            <div class="mt-8 flex-grow flex flex-col md:flex-row items-stretch justify-center gap-4">
-                                <div class="w-full md:w-1/2 bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex flex-col">
-                                    <h4 class="text-sm font-semibold text-slate-400 tracking-wider uppercase">BEFORE</h4>
-                                    <p class="mt-3 text-slate-300 text-sm flex-grow">The utilization of advanced computational models has resulted in a paradigm shift, facilitating significant enhancements in predictive accuracy.</p>
+                                <h3 class="text-2xl font-bold text-white">Manuscript Polisher</h3>
+                                <p class="text-slate-400 mt-1">Automatically refine your writing for clarity, tone, and style.</p>
+                                <div class="mt-8 flex-grow flex flex-col md:flex-row items-stretch justify-center gap-4">
+                                    <div class="w-full md:w-1/2 bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex flex-col">
+                                        <h4 class="text-sm font-semibold text-slate-400 tracking-wider uppercase">BEFORE</h4>
+                                        <p class="mt-3 text-slate-300 text-sm flex-grow">The utilization of advanced computational models has resulted in a paradigm shift, facilitating significant enhancements in predictive accuracy.</p>
+                                    </div>
+                                    <div class="w-full md:w-1/2 bg-slate-900/50 p-4 rounded-lg border border-cyan-400/50 flex flex-col">
+                                        <h4 class="text-sm font-semibold text-cyan-400 tracking-wider uppercase">AFTER</h4>
+                                        <p class="mt-3 text-slate-200 text-sm flex-grow">Using advanced computer models has significantly improved prediction accuracy.</p>
+                                    </div>
                                 </div>
-                                <div class="w-full md:w-1/2 bg-slate-900/50 p-4 rounded-lg border border-cyan-400/50 flex flex-col">
-                                    <h4 class="text-sm font-semibold text-cyan-400 tracking-wider uppercase">AFTER</h4>
-                                    <p class="mt-3 text-slate-200 text-sm flex-grow">Using advanced computer models has significantly improved prediction accuracy.</p>
-                                </div>
-                            </div>
-                            <button onclick="showTool('polisher')" class="mt-8 w-full text-center font-semibold py-3 px-4 rounded-lg bg-cyan-400 text-slate-900 hover:bg-cyan-300 transition-all duration-300 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 glow-button">
-                                Launch Agent
-                            </button>
+                                <button onclick="showTool('polisher')" class="mt-8 w-full text-center font-semibold py-3 px-4 rounded-lg bg-cyan-400 text-slate-900 hover:bg-cyan-300 transition-all duration-300 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 glow-button">
+                                    Launch Agent
+                                </button>
                         </div>
                     </div>
                 </div>
@@ -245,33 +245,33 @@
                     <div class="glass-pane p-4 rounded-2xl">
                         <p class="px-4 py-2 text-sm font-semibold text-white">Available Agents</p>
                         <div class="space-y-1 mt-2">
-                             <div id="latex-tool-selector" onclick="showToolShowcase('latex')" class="tool-list-item active p-4 rounded-lg cursor-pointer group">
-                                <div class="flex items-center gap-4">
-                                    <div class="flex-shrink-0 bg-slate-800 h-10 w-10 flex items-center justify-center rounded-lg border border-slate-700 text-cyan-400"><i data-lucide="file-text" class="w-5 h-5"></i></div>
-                                    <div><h4 class="font-bold text-white group-hover:text-cyan-300 transition-colors"><span style="color: #E0FFFF;">LaTeX Converter</span></h4><p class="text-sm text-slate-400">Reformat papers.</p></div>
-                                </div>
-                            </div>
-                             <div id="arxiv-tool-selector" onclick="showToolShowcase('arxiv')" class="tool-list-item p-4 rounded-lg cursor-pointer group">
-                                <div class="flex items-center gap-4">
-                                    <div class="flex-shrink-0 bg-slate-800 h-10 w-10 flex items-center justify-center rounded-lg border border-slate-700 text-cyan-400"><i data-lucide="file-search-2" class="w-5 h-5"></i></div>
-                                    <div>
-                                        <h4 class="font-bold text-white">
-                                            <span style="color: #E0FFFF;">ACL: A</span>rXiv<span style="color: #E0FFFF;">C</span>oo<span style="color: #E0FFFF;">L</span>
-                                        </h4>
-                                        <p class="text-sm text-slate-400">Deep research.</p></div>
-                                </div>
-                            </div>
-                            <div id="polisher-tool-selector" onclick="showToolShowcase('polisher')" class="tool-list-item p-4 rounded-lg cursor-pointer group">
-                                <div class="flex items-center gap-4">
-                                    <div class="flex-shrink-0 bg-slate-800 h-10 w-10 flex items-center justify-center rounded-lg border border-slate-700 text-cyan-400"><i data-lucide="pencil-ruler" class="w-5 h-5"></i></div>
-                                    <div>
-                                        <h4 class="font-bold text-white group-hover:text-cyan-300 transition-colors">
-                                            <span style="color: #E0FFFF;">Manuscript Polisher</span>
-                                        </h4>
-                                        <p class="text-sm text-slate-400">Refine writing.</p>
+                                <div id="latex-tool-selector" onclick="showToolShowcase('latex')" class="tool-list-item active p-4 rounded-lg cursor-pointer group">
+                                    <div class="flex items-center gap-4">
+                                        <div class="flex-shrink-0 bg-slate-800 h-10 w-10 flex items-center justify-center rounded-lg border border-slate-700 text-cyan-400"><i data-lucide="file-text" class="w-5 h-5"></i></div>
+                                        <div><h4 class="font-bold text-white group-hover:text-cyan-300 transition-colors"><span style="color: #E0FFFF;">LaTeX Converter</span></h4><p class="text-sm text-slate-400">Reformat papers.</p></div>
                                     </div>
                                 </div>
-                            </div>
+                                <div id="arxiv-tool-selector" onclick="showToolShowcase('arxiv')" class="tool-list-item p-4 rounded-lg cursor-pointer group">
+                                    <div class="flex items-center gap-4">
+                                        <div class="flex-shrink-0 bg-slate-800 h-10 w-10 flex items-center justify-center rounded-lg border border-slate-700 text-cyan-400"><i data-lucide="file-search-2" class="w-5 h-5"></i></div>
+                                        <div>
+                                            <h4 class="font-bold text-white">
+                                                <span style="color: #E0FFFF;">A</span>rXiv<span style="color: #E0FFFF;">C</span>oo<span style="color: #E0FFFF;">L</span>
+                                            </h4>
+                                            <p class="text-sm text-slate-400">Deep research.</p></div>
+                                    </div>
+                                </div>
+                                <div id="polisher-tool-selector" onclick="showToolShowcase('polisher')" class="tool-list-item p-4 rounded-lg cursor-pointer group">
+                                    <div class="flex items-center gap-4">
+                                        <div class="flex-shrink-0 bg-slate-800 h-10 w-10 flex items-center justify-center rounded-lg border border-slate-700 text-cyan-400"><i data-lucide="pencil-ruler" class="w-5 h-5"></i></div>
+                                        <div>
+                                            <h4 class="font-bold text-white group-hover:text-cyan-300 transition-colors">
+                                                <span style="color: #E0FFFF;">Manuscript Polisher</span>
+                                            </h4>
+                                            <p class="text-sm text-slate-400">Refine writing.</p>
+                                        </div>
+                                    </div>
+                                </div>
                         </div>
                     </div>
                 </div>
@@ -362,7 +362,7 @@
             }
             window.scrollTo(0, 0);
         }
-          
+        
         function showAbout() {
             homeSection.classList.add('section-hidden');
             latexToolSection.classList.add('section-hidden');
@@ -542,17 +542,17 @@
                         <button id="arxiv-start-btn" class="mt-8 w-full bg-cyan-400 text-slate-900 font-bold py-4 px-4 rounded-xl hover:bg-cyan-300 transition-all duration-300 text-lg glow-button">Start Search</button>
                     </div>
                     <div id="arxiv-progress-section" class="mt-10 section-hidden">
-                         <h3 id="arxiv-progress-title" class="text-2xl font-bold text-center text-white">Search in Progress...</h3>
+                        <h3 id="arxiv-progress-title" class="text-2xl font-bold text-center text-white">Search in Progress...</h3>
                         <div class="mt-6 w-full bg-slate-700 rounded-full h-2.5"><div id="arxiv-progress-bar" class="bg-cyan-400 h-2.5 rounded-full transition-all duration-500 progress-bar-animated" style="width: 0%"></div></div>
                         <p id="arxiv-progress-text" class="text-sm text-center mt-2 text-slate-400">Initializing...</p>
                         <div class="mt-6"><h4 class="font-semibold mb-2 text-white">Agent Log:</h4><div id="arxiv-log-output" class="w-full h-80 bg-black/50 rounded-xl p-4 overflow-y-auto log-container ring-1 ring-slate-800"></div></div>
                         <div id="arxiv-result-section" class="mt-8 text-center section-hidden">
-                           <div id="arxiv-result-icon" class="w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4"></div>
-                           <h3 id="arxiv-result-title" class="text-3xl font-extrabold"></h3><p id="arxiv-result-message" class="text-slate-400 mt-2 max-w-lg mx-auto"></p>
-                           <div class="mt-6 flex gap-4 justify-center">
-                               <a id="arxiv-download-btn" href="#" class="inline-flex items-center gap-2 bg-green-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-600 transition-all duration-300 shadow-lg hover:shadow-green-500/30 hidden"><i data-lucide="download" class="w-5 h-5"></i> Download CSV</a>
-                               <button onclick="initArxivTool()" class="inline-flex items-center gap-2 bg-slate-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-slate-700 transition-all duration-300 shadow-lg hover:shadow-slate-500/30"><i data-lucide="rotate-cw" class="w-5 h-5"></i> New Search</button>
-                           </div>
+                            <div id="arxiv-result-icon" class="w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4"></div>
+                            <h3 id="arxiv-result-title" class="text-3xl font-extrabold"></h3><p id="arxiv-result-message" class="text-slate-400 mt-2 max-w-lg mx-auto"></p>
+                            <div class="mt-6 flex gap-4 justify-center">
+                                <a id="arxiv-download-btn" href="#" class="inline-flex items-center gap-2 bg-green-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-600 transition-all duration-300 shadow-lg hover:shadow-green-500/30 hidden"><i data-lucide="download" class="w-5 h-5"></i> Download CSV</a>
+                                <button onclick="initArxivTool()" class="inline-flex items-center gap-2 bg-slate-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-slate-700 transition-all duration-300 shadow-lg hover:shadow-slate-500/30"><i data-lucide="rotate-cw" class="w-5 h-5"></i> New Search</button>
+                            </div>
                         </div>
                     </div>
                 </div>`;
@@ -622,17 +622,26 @@
                         <h3 id="polisher-progress-title" class="text-2xl font-bold text-center text-white">Polishing in Progress...</h3>
                         <div class="mt-6 w-full bg-slate-700 rounded-full h-2.5"><div id="polisher-progress-bar" class="bg-cyan-400 h-2.5 rounded-full transition-all duration-500 progress-bar-animated" style="width: 0%"></div></div>
                         <p id="polisher-progress-text" class="text-sm text-center mt-2 text-slate-400">Initializing...</p>
-                        <div class="mt-6"><h4 class="font-semibold mb-2 text-white">Agent Log:</h4><div id="polisher-log-output" class="w-full h-60 bg-black/50 rounded-xl p-4 overflow-y-auto log-container ring-1 ring-slate-800"></div></div>
-                        <div id="polisher-result-section" class="mt-8 section-hidden">
-                        <div id="polisher-result-display"></div>
-                        <div id="polisher-suggestions-container" class="mt-6"></div>
-                        <div class="mt-8 flex gap-4 justify-center">
-                            <button onclick="initPolisherTool()" class="inline-flex items-center gap-2 bg-slate-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-slate-700 transition-all duration-300 shadow-lg hover:shadow-slate-500/30"><i data-lucide="rotate-cw" class="w-5 h-5"></i> Start Over</button>
+                        <div class="mt-6">
+                            <div id="polisher-final-log-summary" class="hidden glass-pane p-3 rounded-lg justify-between items-center"></div>
+                            <div id="polisher-log-wrapper">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h4 class="font-semibold text-white">Agent Log:</h4>
+                                </div>
+                                <div id="polisher-log-output" class="w-full h-60 bg-black/50 rounded-xl p-4 overflow-y-auto log-container ring-1 ring-slate-800"></div>
+                            </div>
                         </div>
+                        <div id="polisher-result-section" class="mt-8 section-hidden">
+                            <div id="polisher-comparison-section" class="mb-8"></div>
+                            <div id="polisher-result-display"></div>
+                            <div id="polisher-suggestions-container" class="mt-6"></div>
+                            <div class="mt-8 flex gap-4 justify-center">
+                                <button onclick="initPolisherTool()" class="inline-flex items-center gap-2 bg-slate-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-slate-700 transition-all duration-300 shadow-lg hover:shadow-slate-500/30"><i data-lucide="rotate-cw" class="w-5 h-5"></i> Start Over</button>
+                            </div>
                         </div>
                     </div>
                 </div>`;
-                
+            
             // Load About page HTML
             aboutSection.innerHTML = `
                 <button onclick="showHome()" class="mb-8 flex items-center gap-2 text-slate-400 hover:text-white transition-colors"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Home</button>
@@ -713,7 +722,7 @@
         }
 
         function createLatexFileListItem(label, file, type) {
-             const item = document.createElement('div');
+            const item = document.createElement('div');
             item.className = 'file-list-item flex items-center justify-between p-3 rounded-lg';
             item.innerHTML = `<div class="flex items-center gap-3 overflow-hidden"><i data-lucide="file-zip" class="w-5 h-5 text-slate-400 flex-shrink-0"></i><div class="overflow-hidden"><p class="font-semibold text-white truncate">${label}</p><p class="text-sm text-slate-400 truncate">${file.name}</p></div></div><button onclick="removeLatexFile('${type}')" class="text-slate-500 hover:text-red-400 flex-shrink-0 ml-2"><i data-lucide="x" class="w-5 h-5"></i></button>`;
             document.getElementById('latex-file-list').appendChild(item);
@@ -948,6 +957,8 @@
         let polisherMode = '标准'; // Default mode
         let mustIncludeKeywords = [];
         let referenceKeywords = [];
+        let polisherOriginalText = '';
+        let polisherStyleExample = '';
 
         function setupPolisherKeywordInput(inputId, type) {
             const inputElement = document.getElementById(inputId);
@@ -1027,14 +1038,16 @@
             logOutput.innerHTML = '';
             addLog(logOutput, 'INFO: Agent initialized. Preparing request...', 'info');
 
+            polisherOriginalText = document.getElementById('draft-text').value;
+            polisherStyleExample = document.getElementById('style-example').value;
             const styleRequirements = Array.from(document.querySelectorAll('input[name="style-req"]:checked')).map(el => el.value);
 
             const payload = {
-                original_text: draftText,
+                original_text: polisherOriginalText,
                 must_include_keywords: mustIncludeKeywords,
                 reference_keywords: referenceKeywords,
                 style_requirements: styleRequirements,
-                style_example: document.getElementById('style-example').value,
+                style_example: polisherStyleExample,
                 mode: polisherMode
             };
 
@@ -1068,37 +1081,79 @@
                     clearInterval(statusInterval);
                     const resultsResponse = await fetch(`${API_BASE_URL}${data.result_url}`);
                     const resultsData = await resultsResponse.json();
-                    showPolisherResult('success', 'Polishing Complete!', 'Here are the refined versions of your text.', resultsData);
+                    showPolisherResult('success', 'Polishing Complete!', 'Here are the refined versions of your text.', resultsData, polisherOriginalText, polisherStyleExample);
                 } else if (data.status === 'failed') {
                     clearInterval(statusInterval);
-                    showPolisherResult('error', 'Task Failed', 'An error occurred during processing. Please check the log for details.');
+                    showPolisherResult('error', 'Task Failed', 'An error occurred during processing. Please check the log for details.', null, polisherOriginalText, polisherStyleExample);
                 }
             } catch (error) {
                 clearInterval(statusInterval);
                 addLog(logOutput, `FATAL_ERROR: Error while checking status: ${error.message}`, 'fatal');
-                showPolisherResult('error', 'Status Check Failed', 'Could not retrieve task status.');
+                showPolisherResult('error', 'Status Check Failed', 'Could not retrieve task status.', null, polisherOriginalText, polisherStyleExample);
             }
         }
 
-        function showPolisherResult(status, title, message, data = null) {
+        function showPolisherResult(status, title, message, data = null, originalText = '', styleExample = '') {
             document.getElementById('polisher-progress-title').classList.add('section-hidden');
             document.getElementById('polisher-result-section').classList.remove('section-hidden');
 
             const resultDisplay = document.getElementById('polisher-result-display');
             const suggestionsContainer = document.getElementById('polisher-suggestions-container');
+            const comparisonSection = document.getElementById('polisher-comparison-section');
+            const logWrapper = document.getElementById('polisher-log-wrapper');
+            const finalLogSummary = document.getElementById('polisher-final-log-summary');
+            
             resultDisplay.innerHTML = '';
             suggestionsContainer.innerHTML = '';
+            comparisonSection.innerHTML = '';
+            finalLogSummary.innerHTML = '';
             
+            // Handle Log Collapsing
+            logWrapper.classList.add('hidden');
+            const logOutput = document.getElementById('polisher-log-output');
+            const lastLogEntry = logOutput.lastElementChild?.outerHTML || `<div class="log-entry log-${status === 'success' ? 'success' : 'error'}"><span>${message}</span></div>`;
+
+            finalLogSummary.innerHTML = `
+                <div class="flex-grow">${lastLogEntry}</div>
+                <button onclick="
+                    const wrapper = document.getElementById('polisher-log-wrapper'); 
+                    wrapper.classList.toggle('hidden'); 
+                    this.textContent = wrapper.classList.contains('hidden') ? 'Show Full Log' : 'Hide Full Log';
+                " class="text-sm text-cyan-400 hover:text-white transition-colors ml-4">Show Full Log</button>
+            `;
+            finalLogSummary.classList.remove('hidden');
+
+            // Display Original vs. Reference
+            comparisonSection.innerHTML = `
+                <h3 class="text-2xl font-bold text-white mb-4">Review Your Inputs</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-sm font-semibold text-slate-400 tracking-wider uppercase mb-2">ORIGINAL DRAFT</h4>
+                        <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700 text-slate-300 text-sm" style="max-height: 200px; overflow-y: auto;">
+                            ${originalText.replace(/\n/g, '<br>') || '<p class="text-slate-500">No original text provided.</p>'}
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-semibold text-slate-400 tracking-wider uppercase mb-2">STYLE REFERENCE</h4>
+                        <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700 text-slate-300 text-sm" style="max-height: 200px; overflow-y: auto;">
+                            ${styleExample.replace(/\n/g, '<br>') || '<p class="text-slate-500">No style reference provided.</p>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Display Polished Versions (Responsive Grid)
             if (status === 'success' && data && data.results) {
-                let resultsHtml = '<h3 class="text-2xl font-bold text-white mb-4">Polished Versions</h3><div class="space-y-4">';
+                let resultsHtml = '<h3 class="text-2xl font-bold text-white mt-8 mb-4">Polished Versions</h3>';
+                resultsHtml += '<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">';
                 data.results.forEach((res, index) => {
                     resultsHtml += `
-                        <div class="glass-pane p-4 rounded-lg">
+                        <div class="glass-pane p-4 rounded-lg flex flex-col">
                             <div class="flex justify-between items-center mb-2">
                                 <span class="font-semibold text-cyan-400">Option ${index + 1}</span>
                                 <button onclick="copyToClipboard(this, '${btoa(encodeURIComponent(res))}')" class="flex items-center gap-2 text-sm text-slate-400 hover:text-white"><i data-lucide="clipboard" class="w-4 h-4"></i><span>Copy</span></button>
                             </div>
-                            <p class="text-slate-300">${res.replace(/\n/g, '<br>')}</p>
+                            <p class="text-slate-300 flex-grow">${res.replace(/\n/g, '<br>')}</p>
                         </div>
                     `;
                 });
@@ -1115,7 +1170,7 @@
                 }
 
             } else {
-                resultDisplay.innerHTML = `<div class="text-center p-8 bg-red-900/20 rounded-lg"><i data-lucide="alert-triangle" class="w-12 h-12 mx-auto text-red-400"></i><h3 class="mt-4 text-2xl font-bold text-red-400">${title}</h3><p class="mt-2 text-red-300">${message}</p></div>`;
+                resultDisplay.innerHTML = `<div class="text-center mt-8 p-8 bg-red-900/20 rounded-lg"><i data-lucide="alert-triangle" class="w-12 h-12 mx-auto text-red-400"></i><h3 class="mt-4 text-2xl font-bold text-red-400">${title}</h3><p class="mt-2 text-red-300">${message}</p></div>`;
             }
             lucide.createIcons();
         }
@@ -1152,6 +1207,15 @@
             document.getElementById('polisher-start-btn').onclick = startPolishing;
             setupPolisherKeywordInput('must-include-keyword-input', 'must-include');
             setupPolisherKeywordInput('reference-keyword-input', 'reference');
+
+            // Reset new/modified elements
+            document.getElementById('polisher-comparison-section').innerHTML = '';
+            document.getElementById('polisher-result-display').innerHTML = '';
+            document.getElementById('polisher-suggestions-container').innerHTML = '';
+            document.getElementById('polisher-final-log-summary').classList.add('hidden');
+            document.getElementById('polisher-log-wrapper').classList.remove('hidden');
+            polisherOriginalText = '';
+            polisherStyleExample = '';
         }
         
         document.addEventListener('DOMContentLoaded', initializePage);

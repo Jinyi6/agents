@@ -94,7 +94,6 @@ def call_llm_for_style_transfer(prompt: str, is_json: bool = False) -> any:
 
     if is_json:
         try:
-            # 兼容处理LLM可能返回的被```json ... ```包裹的响应
             if content.startswith("```json"):
                 content = content[7:-3].strip()
             return json.loads(content)
@@ -116,7 +115,7 @@ def call_llm_for_style_transfer(prompt: str, is_json: bool = False) -> any:
 
 def run_style_transfer_logic(run_id: str, request_params: dict):
     """
-    执行文本润色任务的主逻辑。
+    执行文本润色任务的主逻辑 (版本 2.0)。
     """
     process_log = style_transfer_tasks[run_id]['summary']
     mode = request_params.get("mode", "标准")
@@ -202,7 +201,7 @@ def run_style_transfer_logic(run_id: str, request_params: dict):
             process_log.append(f"SUCCESS: LLM 已生成 {len(final_results)} 条润色结果。")
             style_transfer_tasks[run_id]['summary'] = process_log
         
-        # 3. LLM生成修改建议
+        # 3. LLM生成修改建议 (保持不变)
         process_log.append("INFO: 正在调用 LLM 为最终结果生成修改建议...")
         style_transfer_tasks[run_id]['summary'] = process_log
         
@@ -224,7 +223,7 @@ def run_style_transfer_logic(run_id: str, request_params: dict):
         suggestions = call_llm_for_style_transfer(suggestions_prompt, is_json=False)
         process_log.append("SUCCESS: LLM 已生成修改建议。")
         
-        # 4. 任务完成
+        # 4. 任务完成 (保持不变)
         process_log.append("🎉 SUCCESS: 文本润色任务成功完成！")
         style_transfer_tasks[run_id].update({
             "status": "completed",
@@ -239,4 +238,3 @@ def run_style_transfer_logic(run_id: str, request_params: dict):
         logging.error(f"Run ID {run_id}: 处理过程中发生致命错误: {e}", exc_info=True)
         process_log.append(f"❌ FATAL_ERROR: {e}")
         style_transfer_tasks[run_id].update({"status": "failed", "summary": process_log})
-
