@@ -12,7 +12,7 @@ from core.utils import retry_step
 # --- 初始化 OpenAI 客户端 ---
 client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_API_BASE)
 
-def build_prompt(original_text: str, must_include_keywords: Optional[List[str]], reference_keywords: Optional[List[str]], style_requirements: Optional[List[str]], style_example: Optional[str], previous_results: Optional[List[str]] = None) -> str:
+def build_prompt(original_text: str, must_include_keywords: Optional[List[str]], reference_keywords: Optional[List[str]], style_requirements: Optional[List[str]], style_example: Optional[str], previous_results: Optional[List[str]] = None, mode = None) -> str:
     """构建用于文本润色的详细提示词"""
     
     prompt = "你是一位精通特定专业领域的学术写作专家和高级文本编辑。你的任务是基于一系列精确的指令，对一段初始文本进行深度、专业的重构和优化。\n\n"

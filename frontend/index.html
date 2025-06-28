@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-TZFD3J18T6"></script>
     <script>
     window.dataLayer = window.dataLayer || [];
@@ -128,12 +127,41 @@
             align-items: center;
             justify-content: center;
         }
+
+        /* Tooltip styles from Polisher */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 240px;
+            background-color: #1e293b;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 8px 12px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -120px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+            border: 1px solid #334155;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="antialiased">
 
     <div id="app" class="max-w-7xl mx-auto p-4 md:p-8">
-        <!-- Navigation Header -->
         <header class="flex justify-between items-center py-4">
             <div class="flex items-center gap-3 cursor-pointer" onclick="showHome()">
                 <img src="logo.jpg" alt="DIA Logo" class="h-10 w-10 rounded-lg">
@@ -150,7 +178,6 @@
             </nav>
         </header>
 
-        <!-- Main Content: Home Page -->
         <main id="home-section" class="mt-16 md:mt-24">
             <div class="text-center">
                 <h2 class="text-5xl md:text-7xl font-black text-white leading-tight">Complex Tasks,<br> <span class="brand-gradient">Agent-Simplicity.</span></h2>
@@ -158,9 +185,7 @@
             </div>
               
             <div class="mt-20 flex flex-col lg:flex-row gap-12">
-                <!-- Left: Showcase Area -->
                 <div id="showcase-area" class="w-full lg:w-3/4">
-                    <!-- LaTeX Converter Showcase -->
                     <div id="latex-showcase" class="showcase-item">
                         <div class="glass-pane p-6 md:p-8 rounded-2xl">
                              <h3 class="text-2xl font-bold text-white">LaTeX Format Converter</h3>
@@ -182,7 +207,6 @@
                         </div>
                     </div>
 
-                    <!-- ArXivCooL Showcase -->
                     <div id="arxiv-showcase" class="showcase-item section-hidden">
                         <div class="glass-pane p-6 md:p-8 rounded-2xl">
                              <h3 class="text-2xl font-bold text-white">ACL: ArXivCooL</h3>
@@ -196,18 +220,15 @@
                         </div>
                     </div>
 
-                    <!-- Manuscript Polisher Showcase -->
                     <div id="polisher-showcase" class="showcase-item section-hidden">
                         <div class="glass-pane p-6 md:p-8 rounded-2xl flex flex-col">
                              <h3 class="text-2xl font-bold text-white">Manuscript Polisher</h3>
                             <p class="text-slate-400 mt-1">Automatically refine your writing for clarity, tone, and style.</p>
                             <div class="mt-8 flex-grow flex flex-col md:flex-row items-stretch justify-center gap-4">
-                                <!-- Before -->
                                 <div class="w-full md:w-1/2 bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex flex-col">
                                     <h4 class="text-sm font-semibold text-slate-400 tracking-wider uppercase">BEFORE</h4>
                                     <p class="mt-3 text-slate-300 text-sm flex-grow">The utilization of advanced computational models has resulted in a paradigm shift, facilitating significant enhancements in predictive accuracy.</p>
                                 </div>
-                                <!-- After -->
                                 <div class="w-full md:w-1/2 bg-slate-900/50 p-4 rounded-lg border border-cyan-400/50 flex flex-col">
                                     <h4 class="text-sm font-semibold text-cyan-400 tracking-wider uppercase">AFTER</h4>
                                     <p class="mt-3 text-slate-200 text-sm flex-grow">Using advanced computer models has significantly improved prediction accuracy.</p>
@@ -220,7 +241,6 @@
                     </div>
                 </div>
 
-                <!-- Right: Tool List -->
                 <div id="tool-list-area" class="w-full lg:w-1/4">
                     <div class="glass-pane p-4 rounded-2xl">
                         <p class="px-4 py-2 text-sm font-semibold text-white">Available Agents</p>
@@ -258,12 +278,11 @@
             </div>
         </main>
         
-        <!-- Tool Pages: All hidden by default, shown by JS -->
         <div id="latex-tool-section" class="section-hidden"></div>
         <div id="arxiv-tool-section" class="section-hidden"></div>
+        <div id="polisher-tool-section" class="section-hidden"></div>
         <div id="about-section" class="section-hidden"></div>
         
-        <!-- Admin Modal -->
         <div id="admin-modal-container" class="modal-overlay modal-hidden">
             <div id="admin-password-prompt" class="glass-pane p-8 rounded-2xl w-full max-w-md">
                 <h3 class="text-2xl font-bold text-white">Admin Access</h3>
@@ -289,7 +308,6 @@
             </div>
         </div>
         
-        <!-- Footer -->
         <footer class="mt-24 py-8 text-center text-slate-500 text-sm"><p id="copyright"></p></footer>
     </div>
 
@@ -301,6 +319,7 @@
         const homeSection = document.getElementById('home-section');
         const latexToolSection = document.getElementById('latex-tool-section');
         const arxivToolSection = document.getElementById('arxiv-tool-section');
+        const polisherToolSection = document.getElementById('polisher-tool-section');
         const aboutSection = document.getElementById('about-section');
         const copyrightEl = document.getElementById('copyright');
 
@@ -322,6 +341,7 @@
             homeSection.classList.remove('section-hidden');
             latexToolSection.classList.add('section-hidden');
             arxivToolSection.classList.add('section-hidden');
+            polisherToolSection.classList.add('section-hidden');
             aboutSection.classList.add('section-hidden');
             window.scrollTo(0, 0);
         }
@@ -329,15 +349,16 @@
         function showTool(toolName) {
             homeSection.classList.add('section-hidden');
             aboutSection.classList.add('section-hidden');
+            latexToolSection.classList.add('section-hidden');
+            arxivToolSection.classList.add('section-hidden');
+            polisherToolSection.classList.add('section-hidden');
+
             if (toolName === 'latex') {
                 latexToolSection.classList.remove('section-hidden');
-                arxivToolSection.classList.add('section-hidden');
             } else if (toolName === 'arxiv') {
-                latexToolSection.classList.add('section-hidden');
                 arxivToolSection.classList.remove('section-hidden');
             } else if (toolName === 'polisher') {
-                window.location.href = 'funs/polisher.html';
-                return;
+                polisherToolSection.classList.remove('section-hidden');
             }
             window.scrollTo(0, 0);
         }
@@ -346,6 +367,7 @@
             homeSection.classList.add('section-hidden');
             latexToolSection.classList.add('section-hidden');
             arxivToolSection.classList.add('section-hidden');
+            polisherToolSection.classList.add('section-hidden');
             aboutSection.classList.remove('section-hidden');
             window.scrollTo(0, 0);
         }
@@ -447,6 +469,7 @@
         };
 
         function addLog(logOutputEl, message, type) {
+            if (!logOutputEl) return;
             const logEntry = document.createElement('div');
             logEntry.className = `log-entry log-${type}`;
             logEntry.innerHTML = `${logIcons[type] || logIcons['info']}<span>${message}</span>`;
@@ -456,6 +479,7 @@
         }
 
         function updateLogs(logOutputEl, logArray) {
+            if (!logOutputEl) return;
             logOutputEl.innerHTML = ''; 
             if(!logArray) return;
             logArray.forEach(log => {
@@ -469,13 +493,14 @@
         }
         
         function updateProgressBar(barEl, textEl, percentage, text) {
+            if (!barEl || !textEl) return;
             barEl.style.width = `${percentage}%`;
             textEl.innerText = text;
         }
 
         // --- Initialization ---
         function initializePage() {
-                        // Load LaTeX tool HTML
+            // Load LaTeX tool HTML
             latexToolSection.innerHTML = `
                 <button onclick="showHome()" class="mb-8 flex items-center gap-2 text-slate-400 hover:text-white transition-colors"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Home</button>
                 <div class="glass-pane p-8 md:p-12 rounded-2xl">
@@ -532,6 +557,82 @@
                     </div>
                 </div>`;
             
+             // Load Polisher tool HTML
+            polisherToolSection.innerHTML = `
+                <button onclick="showHome()" class="mb-8 flex items-center gap-2 text-slate-400 hover:text-white transition-colors"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Home</button>
+                <div class="glass-pane p-8 md:p-12 rounded-2xl">
+                    <div class="text-center">
+                        <h2 class="text-4xl font-extrabold text-white">Manuscript Polisher</h2>
+                        <p class="mt-2 text-slate-400">Refine your text with precision. Provide your draft, specify constraints, and let the agent work its magic.</p>
+                    </div>
+                    <div id="polisher-input-section" class="mt-10">
+                        <div>
+                            <label for="draft-text" class="font-semibold text-white">Your Draft Text</label>
+                            <textarea id="draft-text" class="mt-2 w-full h-40 bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" placeholder="Paste the text you want to polish here..."></textarea>
+                        </div>
+                        <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div>
+                                <label class="font-semibold text-white">Must-Include Keywords</label>
+                                <div class="mt-2 flex items-center bg-slate-800 border border-slate-600 rounded-lg p-1">
+                                    <input id="must-include-keyword-input" type="text" class="flex-grow bg-transparent p-2 text-white focus:outline-none" placeholder="Keywords that must appear verbatim">
+                                    <button onclick="addPolisherKeyword('must-include')" class="bg-cyan-500 hover:bg-cyan-400 rounded-md p-2 ml-2"><i data-lucide="plus" class="w-5 h-5"></i></button>
+                                </div>
+                                <div id="must-include-keywords-container" class="mt-2 flex flex-wrap gap-2"></div>
+                            </div>
+                            <div>
+                                <label class="font-semibold text-white">Reference Keywords</label>
+                                <div class="mt-2 flex items-center bg-slate-800 border border-slate-600 rounded-lg p-1">
+                                    <input id="reference-keyword-input" type="text" class="flex-grow bg-transparent p-2 text-white focus:outline-none" placeholder="Keywords whose meaning must be conveyed">
+                                    <button onclick="addPolisherKeyword('reference')" class="bg-cyan-500 hover:bg-cyan-400 rounded-md p-2 ml-2"><i data-lucide="plus" class="w-5 h-5"></i></button>
+                                </div>
+                                <div id="reference-keywords-container" class="mt-2 flex flex-wrap gap-2"></div>
+                            </div>
+                        </div>
+                        <div class="mt-8">
+                            <label for="style-example" class="font-semibold text-white">Style Reference (Optional)</label>
+                            <textarea id="style-example" class="mt-2 w-full h-24 bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" placeholder="Paste an example of the writing style you want to emulate..."></textarea>
+                        </div>
+                        <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                            <div>
+                                <label class="font-semibold text-white">Style Requirements (Optional)</label>
+                                <div class="mt-2 grid grid-cols-2 gap-4">
+                                    <label class="glass-pane p-3 rounded-lg cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-cyan-400 transition-all"><input type="checkbox" name="style-req" value="专业学术" class="hidden"><span>Academic</span></label>
+                                    <label class="glass-pane p-3 rounded-lg cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-cyan-400 transition-all"><input type="checkbox" name="style-req" value="口语化" class="hidden"><span>Conversational</span></label>
+                                    <label class="glass-pane p-3 rounded-lg cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-cyan-400 transition-all"><input type="checkbox" name="style-req" value="简洁" class="hidden"><span>Concise</span></label>
+                                    <label class="glass-pane p-3 rounded-lg cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-cyan-400 transition-all"><input type="checkbox" name="style-req" value="普通" class="hidden"><span>Standard</span></label>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <label class="font-semibold text-white">Processing Mode</label>
+                                    <div class="tooltip">
+                                        <i data-lucide="info" class="w-4 h-4 text-slate-400 cursor-pointer"></i>
+                                        <span class="tooltiptext"><b>Standard:</b> Faster, good results.<br><b>Professional:</b> Slower, runs more iterations for higher quality and diversity.</span>
+                                    </div>
+                                </div>
+                                <div class="mt-2 p-1 bg-slate-800 rounded-lg flex">
+                                    <button id="mode-standard-btn" onclick="setPolisherMode('标准')" class="w-1/2 py-2 text-center rounded-md bg-cyan-500 text-white font-semibold">Standard</button>
+                                    <button id="mode-professional-btn" onclick="setPolisherMode('专业')" class="w-1/2 py-2 text-center rounded-md text-slate-400">Professional</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button id="polisher-start-btn" class="mt-10 w-full bg-cyan-400 text-slate-900 font-bold py-4 px-4 rounded-xl hover:bg-cyan-300 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed transition-all duration-300 text-lg glow-button">Start Polishing</button>
+                    </div>
+                    <div id="polisher-progress-section" class="mt-10 section-hidden">
+                        <h3 id="polisher-progress-title" class="text-2xl font-bold text-center text-white">Polishing in Progress...</h3>
+                        <div class="mt-6 w-full bg-slate-700 rounded-full h-2.5"><div id="polisher-progress-bar" class="bg-cyan-400 h-2.5 rounded-full transition-all duration-500 progress-bar-animated" style="width: 0%"></div></div>
+                        <p id="polisher-progress-text" class="text-sm text-center mt-2 text-slate-400">Initializing...</p>
+                        <div class="mt-6"><h4 class="font-semibold mb-2 text-white">Agent Log:</h4><div id="polisher-log-output" class="w-full h-60 bg-black/50 rounded-xl p-4 overflow-y-auto log-container ring-1 ring-slate-800"></div></div>
+                        <div id="polisher-result-section" class="mt-8 section-hidden">
+                        <div id="polisher-result-display"></div>
+                        <div id="polisher-suggestions-container" class="mt-6"></div>
+                        <div class="mt-8 flex gap-4 justify-center">
+                            <button onclick="initPolisherTool()" class="inline-flex items-center gap-2 bg-slate-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-slate-700 transition-all duration-300 shadow-lg hover:shadow-slate-500/30"><i data-lucide="rotate-cw" class="w-5 h-5"></i> Start Over</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>`;
+                
             // Load About page HTML
             aboutSection.innerHTML = `
                 <button onclick="showHome()" class="mb-8 flex items-center gap-2 text-slate-400 hover:text-white transition-colors"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Home</button>
@@ -554,6 +655,7 @@
             
             initLatexTool();
             initArxivTool();
+            initPolisherTool();
 
             showToolShowcase('latex');
             if(copyrightEl) copyrightEl.textContent = `Copyright © ${new Date().getFullYear()} DIA - Do It by Agent. All Rights Reserved.`;
@@ -709,18 +811,15 @@
             document.getElementById('arxiv-progress-section').classList.add('section-hidden');
             document.getElementById('arxiv-result-section').classList.add('section-hidden');
 
-            // Set default dates
             const today = new Date();
             const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
             document.getElementById('arxiv-start-date').value = firstDayOfMonth.toISOString().split('T')[0];
             document.getElementById('arxiv-end-date').value = today.toISOString().split('T')[0];
 
-            // Setup keyword input
             const keywordInput = document.getElementById('arxiv-keyword-input');
             keywordInput.value = '';
             keywordInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addArxivKeyword(); }};
 
-            // Setup slider
             const maxResultsSlider = document.getElementById('arxiv-max-results');
             const maxResultsValue = document.getElementById('arxiv-max-results-value');
             maxResultsSlider.oninput = () => { maxResultsValue.textContent = maxResultsSlider.value; };
@@ -843,6 +942,216 @@
                 downloadBtn.classList.add('hidden');
             }
             lucide.createIcons();
+        }
+
+        // --- Manuscript Polisher Tool Specific Logic ---
+        let polisherMode = '标准'; // Default mode
+        let mustIncludeKeywords = [];
+        let referenceKeywords = [];
+
+        function setupPolisherKeywordInput(inputId, type) {
+            const inputElement = document.getElementById(inputId);
+            if(inputElement) {
+                inputElement.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addPolisherKeyword(type);
+                    }
+                });
+            }
+        }
+        
+        function addPolisherKeyword(type) {
+            const inputEl = document.getElementById(`${type}-keyword-input`);
+            const keyword = inputEl.value.trim();
+            const keywordArray = type === 'must-include' ? mustIncludeKeywords : referenceKeywords;
+            
+            if (keyword && !keywordArray.includes(keyword)) {
+                keywordArray.push(keyword);
+                renderPolisherKeywords(type);
+            }
+            inputEl.value = '';
+            inputEl.focus();
+        }
+
+        function removePolisherKeyword(type, keywordToRemove) {
+            if (type === 'must-include') {
+                mustIncludeKeywords = mustIncludeKeywords.filter(k => k !== keywordToRemove);
+            } else {
+                referenceKeywords = referenceKeywords.filter(k => k !== keywordToRemove);
+            }
+            renderPolisherKeywords(type);
+        }
+
+        function renderPolisherKeywords(type) {
+            const container = document.getElementById(`${type}-keywords-container`);
+            const keywordArray = type === 'must-include' ? mustIncludeKeywords : referenceKeywords;
+            container.innerHTML = '';
+            keywordArray.forEach(k => {
+                const tag = document.createElement('span');
+                tag.className = 'keyword-tag flex items-center gap-2 px-3 py-1 rounded-full text-sm';
+                tag.innerHTML = `<span>${k}</span><button onclick="removePolisherKeyword('${type}', '${k}')"><i data-lucide="x" class="w-4 h-4 text-slate-400 hover:text-white"></i></button>`;
+                container.appendChild(tag);
+            });
+            lucide.createIcons();
+        }
+
+        function setPolisherMode(mode) {
+            polisherMode = mode;
+            const standardBtn = document.getElementById('mode-standard-btn');
+            const professionalBtn = document.getElementById('mode-professional-btn');
+            if (mode === '标准') {
+                standardBtn.classList.add('bg-cyan-500', 'text-white', 'font-semibold');
+                standardBtn.classList.remove('text-slate-400');
+                professionalBtn.classList.remove('bg-cyan-500', 'text-white', 'font-semibold');
+                professionalBtn.classList.add('text-slate-400');
+            } else {
+                professionalBtn.classList.add('bg-cyan-500', 'text-white', 'font-semibold');
+                professionalBtn.classList.remove('text-slate-400');
+                standardBtn.classList.remove('bg-cyan-500', 'text-white', 'font-semibold');
+                standardBtn.classList.add('text-slate-400');
+            }
+        }
+        
+        async function startPolishing() {
+            const draftText = document.getElementById('draft-text').value;
+            if (!draftText.trim()) {
+                alert("Please provide the draft text to be polished.");
+                return;
+            }
+
+            document.getElementById('polisher-input-section').classList.add('section-hidden');
+            document.getElementById('polisher-progress-section').classList.remove('section-hidden');
+            
+            const logOutput = document.getElementById('polisher-log-output');
+            logOutput.innerHTML = '';
+            addLog(logOutput, 'INFO: Agent initialized. Preparing request...', 'info');
+
+            const styleRequirements = Array.from(document.querySelectorAll('input[name="style-req"]:checked')).map(el => el.value);
+
+            const payload = {
+                original_text: draftText,
+                must_include_keywords: mustIncludeKeywords,
+                reference_keywords: referenceKeywords,
+                style_requirements: styleRequirements,
+                style_example: document.getElementById('style-example').value,
+                mode: polisherMode
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/style_transfer/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) { const err = await response.json().catch(()=>({detail:"Unknown error"})); throw new Error(err.detail); }
+                const data = await response.json();
+                addLog(logOutput, `SUCCESS: Task created. Run ID: ${data.run_id}`, 'success');
+                statusInterval = setInterval(() => checkPolisherStatus(data.run_id), 3000);
+            } catch (error) {
+                 showPolisherResult('error', 'Task Start Failed', `Could not start the polishing task: ${error.message}`);
+            }
+        }
+
+        async function checkPolisherStatus(runId) {
+            const logOutput = document.getElementById('polisher-log-output');
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/style_transfer/status/${runId}`);
+                if (!response.ok) throw new Error(`HTTP Error! Status: ${response.status}`);
+                const data = await response.json();
+                
+                updateLogs(logOutput, data.summary);
+                const progress = data.status === 'completed' || data.status === 'failed' ? 100 : (data.summary ? data.summary.length * 10 : 10);
+                updateProgressBar(document.getElementById('polisher-progress-bar'), document.getElementById('polisher-progress-text'), progress, data.status);
+                
+                if (data.status === 'completed') {
+                    clearInterval(statusInterval);
+                    const resultsResponse = await fetch(`${API_BASE_URL}${data.result_url}`);
+                    const resultsData = await resultsResponse.json();
+                    showPolisherResult('success', 'Polishing Complete!', 'Here are the refined versions of your text.', resultsData);
+                } else if (data.status === 'failed') {
+                    clearInterval(statusInterval);
+                    showPolisherResult('error', 'Task Failed', 'An error occurred during processing. Please check the log for details.');
+                }
+            } catch (error) {
+                clearInterval(statusInterval);
+                addLog(logOutput, `FATAL_ERROR: Error while checking status: ${error.message}`, 'fatal');
+                showPolisherResult('error', 'Status Check Failed', 'Could not retrieve task status.');
+            }
+        }
+
+        function showPolisherResult(status, title, message, data = null) {
+            document.getElementById('polisher-progress-title').classList.add('section-hidden');
+            document.getElementById('polisher-result-section').classList.remove('section-hidden');
+
+            const resultDisplay = document.getElementById('polisher-result-display');
+            const suggestionsContainer = document.getElementById('polisher-suggestions-container');
+            resultDisplay.innerHTML = '';
+            suggestionsContainer.innerHTML = '';
+            
+            if (status === 'success' && data && data.results) {
+                let resultsHtml = '<h3 class="text-2xl font-bold text-white mb-4">Polished Versions</h3><div class="space-y-4">';
+                data.results.forEach((res, index) => {
+                    resultsHtml += `
+                        <div class="glass-pane p-4 rounded-lg">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-semibold text-cyan-400">Option ${index + 1}</span>
+                                <button onclick="copyToClipboard(this, '${btoa(encodeURIComponent(res))}')" class="flex items-center gap-2 text-sm text-slate-400 hover:text-white"><i data-lucide="clipboard" class="w-4 h-4"></i><span>Copy</span></button>
+                            </div>
+                            <p class="text-slate-300">${res.replace(/\n/g, '<br>')}</p>
+                        </div>
+                    `;
+                });
+                resultsHtml += '</div>';
+                resultDisplay.innerHTML = resultsHtml;
+
+                if(data.suggestions) {
+                    suggestionsContainer.innerHTML = `
+                        <div class="mt-8 pt-6 border-t border-slate-700/50">
+                            <h4 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="lightbulb" class="text-yellow-400"></i>Agent's Suggestions</h4>
+                            <div class="mt-3 glass-pane p-4 rounded-lg text-slate-300">${data.suggestions}</div>
+                        </div>
+                    `;
+                }
+
+            } else {
+                resultDisplay.innerHTML = `<div class="text-center p-8 bg-red-900/20 rounded-lg"><i data-lucide="alert-triangle" class="w-12 h-12 mx-auto text-red-400"></i><h3 class="mt-4 text-2xl font-bold text-red-400">${title}</h3><p class="mt-2 text-red-300">${message}</p></div>`;
+            }
+            lucide.createIcons();
+        }
+        
+        function copyToClipboard(button, base64Text) {
+            const text = decodeURIComponent(atob(base64Text));
+            navigator.clipboard.writeText(text).then(() => {
+                button.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i><span>Copied!</span>';
+                lucide.createIcons();
+                setTimeout(() => {
+                    button.innerHTML = '<i data-lucide="clipboard" class="w-4 h-4"></i><span>Copy</span>';
+                    lucide.createIcons();
+                }, 2000);
+            });
+        }
+
+        function initPolisherTool() {
+            clearInterval(statusInterval);
+            document.getElementById('polisher-input-section').classList.remove('section-hidden');
+            document.getElementById('polisher-progress-section').classList.add('section-hidden');
+            document.getElementById('polisher-result-section').classList.add('section-hidden');
+            
+            document.getElementById('draft-text').value = '';
+            document.getElementById('style-example').value = '';
+            document.querySelectorAll('input[name="style-req"]').forEach(el => el.checked = false);
+            
+            mustIncludeKeywords = [];
+            referenceKeywords = [];
+            renderPolisherKeywords('must-include');
+            renderPolisherKeywords('reference');
+            
+            setPolisherMode('标准');
+            
+            document.getElementById('polisher-start-btn').onclick = startPolishing;
+            setupPolisherKeywordInput('must-include-keyword-input', 'must-include');
+            setupPolisherKeywordInput('reference-keyword-input', 'reference');
         }
         
         document.addEventListener('DOMContentLoaded', initializePage);
