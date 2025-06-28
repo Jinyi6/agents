@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manuscript Polisher - DIA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif;
+            background-color: #020617; /* slate-950 */
+            color: #d1d5db; /* gray-300 */
+        }
+        .glass-pane {
+            background-color: rgba(15, 23, 42, 0.6); /* slate-900 with opacity */
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(51, 65, 85, 0.5); /* slate-700 with opacity */
+        }
+        .section-hidden { display: none !important; }
+        .progress-bar-animated {
+            background-image: linear-gradient(45deg, rgba(255, 255, 255, .15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, .15) 50%, rgba(255, 255, 255, .15) 75%, transparent 75%, transparent);
+            background-size: 1rem 1rem;
+            animation: progress-bar-stripes 1s linear infinite;
+        }
+        @keyframes progress-bar-stripes {
+            from { background-position: 1rem 0; }
+            to { background-position: 0 0; }
+        }
+        .glow-button {
+            box-shadow: 0 0 5px #22d3ee, 0 0 10px #22d3ee, 0 0 15px #0ea5e9;
+        }
+        .log-container {
+            font-family: 'Menlo', 'Courier New', Courier, monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-size: 0.875rem;
+        }
+        .log-entry { padding: 2px 8px; display: flex; align-items: center; border-left: 2px solid transparent; }
+        .log-entry i { margin-right: 10px; flex-shrink: 0; }
+        .log-info { border-left-color: #38bdf8; color: #7dd3fc; }
+        .log-success { border-left-color: #4ade80; color: #86efac; }
+        .log-warning { border-left-color: #facc15; color: #fde047; }
+        .log-error { border-left-color: #f87171; color: #fca5a5; }
+        .log-fatal { background-color: #be185d; color: white; font-weight: bold; border-radius: 4px; }
+        .keyword-tag { background-color: #334155; color: #cbd5e1; }
+        
+        /* Tooltip styles */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 240px;
+            background-color: #1e293b;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 8px 12px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -120px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+            border: 1px solid #334155;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-7xl mx-auto p-4 md:p-8">
+        <!-- Navigation Header -->
+        <header class="flex justify-between items-center py-4">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.href='index.html'">
+                <img src="logo.jpg" alt="DIA Logo" class="h-10 w-10 rounded-lg">
+                <h1 class="text-2xl font-bold text-white tracking-wider">DIA</h1>
+            </div>
+            <nav class="flex items-center gap-6 text-sm font-medium">
+                 <a href="index.html" class="text-slate-400 hover:text-white transition-colors flex items-center gap-2">
+                    <i data-lucide="home" class="w-4 h-4"></i>
+                    <span>Back to Home</span>
+                </a>
+            </nav>
+        </header>
+
+        <!-- Main Content -->
+        <main class="mt-12">
+            <div class="glass-pane p-8 md:p-12 rounded-2xl">
+                <div class="text-center">
+                    <h2 class="text-4xl font-extrabold text-white">Manuscript Polisher</h2>
+                    <p class="mt-2 text-slate-400">Refine your text with precision. Provide your draft, specify constraints, and let the agent work its magic.</p>
+                </div>
+
+                <!-- Input Section -->
+                <div id="polisher-input-section" class="mt-10">
+                    <div>
+                        <label for="draft-text" class="font-semibold text-white">Your Draft Text</label>
+                        <textarea id="draft-text" class="mt-2 w-full h-40 bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" placeholder="Paste the text you want to polish here..."></textarea>
+                    </div>
+
+                    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <label class="font-semibold text-white">Must-Include Keywords</label>
+                            <div class="mt-2 flex items-center bg-slate-800 border border-slate-600 rounded-lg p-1">
+                                <input id="must-include-keyword-input" type="text" class="flex-grow bg-transparent p-2 text-white focus:outline-none" placeholder="Keywords that must appear verbatim">
+                                <button onclick="addKeyword('must-include')" class="bg-cyan-500 hover:bg-cyan-400 rounded-md p-2 ml-2"><i data-lucide="plus" class="w-5 h-5"></i></button>
+                            </div>
+                            <div id="must-include-keywords-container" class="mt-2 flex flex-wrap gap-2"></div>
+                        </div>
+                        <div>
+                            <label class="font-semibold text-white">Reference Keywords</label>
+                             <div class="mt-2 flex items-center bg-slate-800 border border-slate-600 rounded-lg p-1">
+                                <input id="reference-keyword-input" type="text" class="flex-grow bg-transparent p-2 text-white focus:outline-none" placeholder="Keywords whose meaning must be conveyed">
+                                <button onclick="addKeyword('reference')" class="bg-cyan-500 hover:bg-cyan-400 rounded-md p-2 ml-2"><i data-lucide="plus" class="w-5 h-5"></i></button>
+                            </div>
+                            <div id="reference-keywords-container" class="mt-2 flex flex-wrap gap-2"></div>
+                        </div>
+                    </div>
+
+                    <div class="mt-8">
+                        <label for="style-example" class="font-semibold text-white">Style Reference (Optional)</label>
+                        <textarea id="style-example" class="mt-2 w-full h-24 bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" placeholder="Paste an example of the writing style you want to emulate..."></textarea>
+                    </div>
+                    
+                    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                        <div>
+                            <label class="font-semibold text-white">Style Requirements (Optional)</label>
+                            <div class="mt-2 grid grid-cols-2 gap-4">
+                                <label class="glass-pane p-3 rounded-lg cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-cyan-400 transition-all"><input type="checkbox" name="style-req" value="专业学术" class="hidden"><span>Academic</span></label>
+                                <label class="glass-pane p-3 rounded-lg cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-cyan-400 transition-all"><input type="checkbox" name="style-req" value="口语化" class="hidden"><span>Conversational</span></label>
+                                <label class="glass-pane p-3 rounded-lg cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-cyan-400 transition-all"><input type="checkbox" name="style-req" value="简洁" class="hidden"><span>Concise</span></label>
+                                <label class="glass-pane p-3 rounded-lg cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-cyan-400 transition-all"><input type="checkbox" name="style-req" value="普通" class="hidden"><span>Standard</span></label>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <label class="font-semibold text-white">Processing Mode</label>
+                                <div class="tooltip">
+                                    <i data-lucide="info" class="w-4 h-4 text-slate-400 cursor-pointer"></i>
+                                    <span class="tooltiptext">
+                                        <b>Standard:</b> Faster, good results.<br>
+                                        <b>Professional:</b> Slower, runs more iterations for higher quality and diversity.
+                                    </span>
+                                </div>
+                            </div>
+                             <div class="mt-2 p-1 bg-slate-800 rounded-lg flex">
+                                <button id="mode-standard-btn" onclick="setMode('标准')" class="w-1/2 py-2 text-center rounded-md bg-cyan-500 text-white font-semibold">Standard</button>
+                                <button id="mode-professional-btn" onclick="setMode('专业')" class="w-1/2 py-2 text-center rounded-md text-slate-400">Professional</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="polisher-start-btn" class="mt-10 w-full bg-cyan-400 text-slate-900 font-bold py-4 px-4 rounded-xl hover:bg-cyan-300 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed transition-all duration-300 text-lg glow-button">
+                        Start Polishing
+                    </button>
+                </div>
+
+                <!-- Progress & Result Section -->
+                <div id="polisher-progress-section" class="mt-10 section-hidden">
+                    <h3 id="polisher-progress-title" class="text-2xl font-bold text-center text-white">Polishing in Progress...</h3>
+                    <div class="mt-6 w-full bg-slate-700 rounded-full h-2.5"><div id="polisher-progress-bar" class="bg-cyan-400 h-2.5 rounded-full transition-all duration-500 progress-bar-animated" style="width: 0%"></div></div>
+                    <p id="polisher-progress-text" class="text-sm text-center mt-2 text-slate-400">Initializing...</p>
+                    <div class="mt-6"><h4 class="font-semibold mb-2 text-white">Agent Log:</h4><div id="polisher-log-output" class="w-full h-60 bg-black/50 rounded-xl p-4 overflow-y-auto log-container ring-1 ring-slate-800"></div></div>
+                    
+                    <div id="polisher-result-section" class="mt-8 section-hidden">
+                       <div id="polisher-result-display">
+                           <!-- Results will be injected here by JS -->
+                       </div>
+                       <div id="polisher-suggestions-container" class="mt-6">
+                            <!-- Suggestions will be injected here -->
+                       </div>
+                       <div class="mt-8 flex gap-4 justify-center">
+                           <button onclick="initPolisherTool()" class="inline-flex items-center gap-2 bg-slate-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-slate-700 transition-all duration-300 shadow-lg hover:shadow-slate-500/30"><i data-lucide="rotate-cw" class="w-5 h-5"></i> Start Over</button>
+                       </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="mt-24 py-8 text-center text-slate-500 text-sm"><p>Copyright © 2024 DIA - Do It by Agent. All Rights Reserved.</p></footer>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        const API_BASE_URL = 'https://doitbyagent.onrender.com';
+        let statusInterval;
+        let polisherMode = '标准'; // Default mode
+        let mustIncludeKeywords = [];
+        let referenceKeywords = [];
+
+        // --- DOM Elements ---
+        const inputSection = document.getElementById('polisher-input-section');
+        const progressSection = document.getElementById('polisher-progress-section');
+        const resultSection = document.getElementById('polisher-result-section');
+        const startBtn = document.getElementById('polisher-start-btn');
+
+        // --- Keyword Management ---
+        function setupKeywordInput(inputId, type) {
+            document.getElementById(inputId).addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addKeyword(type);
+                }
+            });
+        }
+        
+        function addKeyword(type) {
+            const inputEl = document.getElementById(`${type}-keyword-input`);
+            const keyword = inputEl.value.trim();
+            const keywordArray = type === 'must-include' ? mustIncludeKeywords : referenceKeywords;
+            
+            if (keyword && !keywordArray.includes(keyword)) {
+                keywordArray.push(keyword);
+                renderKeywords(type);
+            }
+            inputEl.value = '';
+            inputEl.focus();
+        }
+
+        function removeKeyword(type, keywordToRemove) {
+            if (type === 'must-include') {
+                mustIncludeKeywords = mustIncludeKeywords.filter(k => k !== keywordToRemove);
+            } else {
+                referenceKeywords = referenceKeywords.filter(k => k !== keywordToRemove);
+            }
+            renderKeywords(type);
+        }
+
+        function renderKeywords(type) {
+            const container = document.getElementById(`${type}-keywords-container`);
+            const keywordArray = type === 'must-include' ? mustIncludeKeywords : referenceKeywords;
+            container.innerHTML = '';
+            keywordArray.forEach(k => {
+                const tag = document.createElement('span');
+                tag.className = 'keyword-tag flex items-center gap-2 px-3 py-1 rounded-full text-sm';
+                tag.innerHTML = `<span>${k}</span><button onclick="removeKeyword('${type}', '${k}')"><i data-lucide="x" class="w-4 h-4 text-slate-400 hover:text-white"></i></button>`;
+                container.appendChild(tag);
+            });
+            lucide.createIcons();
+        }
+
+        // --- Mode Selection ---
+        function setMode(mode) {
+            polisherMode = mode;
+            const standardBtn = document.getElementById('mode-standard-btn');
+            const professionalBtn = document.getElementById('mode-professional-btn');
+            if (mode === '标准') {
+                standardBtn.classList.add('bg-cyan-500', 'text-white', 'font-semibold');
+                standardBtn.classList.remove('text-slate-400');
+                professionalBtn.classList.remove('bg-cyan-500', 'text-white', 'font-semibold');
+                professionalBtn.classList.add('text-slate-400');
+            } else {
+                professionalBtn.classList.add('bg-cyan-500', 'text-white', 'font-semibold');
+                professionalBtn.classList.remove('text-slate-400');
+                standardBtn.classList.remove('bg-cyan-500', 'text-white', 'font-semibold');
+                standardBtn.classList.add('text-slate-400');
+            }
+        }
+        
+        // --- Log & Progress UI ---
+        const logIcons = { info: '<i data-lucide="arrow-right-circle" class="w-4 h-4"></i>', success: '<i data-lucide="check-circle-2" class="w-4 h-4"></i>', warning: '<i data-lucide="alert-triangle" class="w-4 h-4"></i>', error: '<i data-lucide="x-circle" class="w-4 h-4"></i>', fatal: '<i data-lucide="skull" class="w-4 h-4"></i>' };
+        function addLog(logOutputEl, message, type) {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.innerHTML = `${logIcons[type] || logIcons['info']}<span>${message}</span>`;
+            logOutputEl.appendChild(logEntry);
+            logOutputEl.scrollTop = logOutputEl.scrollHeight; 
+            lucide.createIcons();
+        }
+        function updateLogs(logOutputEl, logArray) {
+            logOutputEl.innerHTML = ''; 
+            if(!logArray) return;
+            logArray.forEach(log => {
+                let type = 'info';
+                if (log.includes('SUCCESS') || log.includes('🎉')) type = 'success';
+                else if (log.includes('WARNING')) type = 'warning';
+                else if (log.includes('ERROR') || log.includes('❌')) type = 'error';
+                else if (log.includes('FATAL_ERROR')) type = 'fatal';
+                addLog(logOutputEl, log, type);
+            });
+        }
+        function updateProgressBar(barEl, textEl, percentage, text) {
+            barEl.style.width = `${percentage}%`;
+            textEl.innerText = text;
+        }
+
+        // --- Core Logic ---
+        async function startPolishing() {
+            const draftText = document.getElementById('draft-text').value;
+            if (!draftText.trim()) {
+                alert("Please provide the draft text to be polished.");
+                return;
+            }
+
+            inputSection.classList.add('section-hidden');
+            progressSection.classList.remove('section-hidden');
+            
+            const logOutput = document.getElementById('polisher-log-output');
+            logOutput.innerHTML = '';
+            addLog(logOutput, 'INFO: Agent initialized. Preparing request...', 'info');
+
+            const styleRequirements = Array.from(document.querySelectorAll('input[name="style-req"]:checked')).map(el => el.value);
+
+            const payload = {
+                original_text: draftText,
+                must_include_keywords: mustIncludeKeywords,
+                reference_keywords: referenceKeywords,
+                style_requirements: styleRequirements,
+                style_example: document.getElementById('style-example').value,
+                mode: polisherMode
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/style_transfer/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) { const err = await response.json().catch(()=>({detail:"Unknown error"})); throw new Error(err.detail); }
+                const data = await response.json();
+                addLog(logOutput, `SUCCESS: Task created. Run ID: ${data.run_id}`, 'success');
+                statusInterval = setInterval(() => checkPolisherStatus(data.run_id), 3000);
+            } catch (error) {
+                 showPolisherResult('error', 'Task Start Failed', `Could not start the polishing task: ${error.message}`);
+            }
+        }
+
+        async function checkPolisherStatus(runId) {
+            const logOutput = document.getElementById('polisher-log-output');
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/style_transfer/status/${runId}`);
+                if (!response.ok) throw new Error(`HTTP Error! Status: ${response.status}`);
+                const data = await response.json();
+                
+                updateLogs(logOutput, data.summary);
+                const progress = data.status === 'completed' || data.status === 'failed' ? 100 : (data.summary.length * 10);
+                updateProgressBar(document.getElementById('polisher-progress-bar'), document.getElementById('polisher-progress-text'), progress, data.status);
+                
+                if (data.status === 'completed') {
+                    clearInterval(statusInterval);
+                    const resultsResponse = await fetch(`${API_BASE_URL}${data.result_url}`);
+                    const resultsData = await resultsResponse.json();
+                    showPolisherResult('success', 'Polishing Complete!', 'Here are the refined versions of your text.', resultsData);
+                } else if (data.status === 'failed') {
+                    clearInterval(statusInterval);
+                    showPolisherResult('error', 'Task Failed', 'An error occurred during processing. Please check the log for details.');
+                }
+            } catch (error) {
+                clearInterval(statusInterval);
+                addLog(logOutput, `FATAL_ERROR: Error while checking status: ${error.message}`, 'fatal');
+                showPolisherResult('error', 'Status Check Failed', 'Could not retrieve task status.');
+            }
+        }
+
+        function showPolisherResult(status, title, message, data = null) {
+            document.getElementById('polisher-progress-title').classList.add('section-hidden');
+            resultSection.classList.remove('section-hidden');
+
+            const resultDisplay = document.getElementById('polisher-result-display');
+            const suggestionsContainer = document.getElementById('polisher-suggestions-container');
+            resultDisplay.innerHTML = '';
+            suggestionsContainer.innerHTML = '';
+            
+            if (status === 'success' && data) {
+                // Display results
+                let resultsHtml = '<h3 class="text-2xl font-bold text-white mb-4">Polished Versions</h3><div class="space-y-4">';
+                data.results.forEach((res, index) => {
+                    resultsHtml += `
+                        <div class="glass-pane p-4 rounded-lg">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-semibold text-cyan-400">Option ${index + 1}</span>
+                                <button onclick="copyToClipboard(this, '${btoa(encodeURIComponent(res))}')" class="flex items-center gap-2 text-sm text-slate-400 hover:text-white"><i data-lucide="clipboard" class="w-4 h-4"></i><span>Copy</span></button>
+                            </div>
+                            <p class="text-slate-300">${res.replace(/\n/g, '<br>')}</p>
+                        </div>
+                    `;
+                });
+                resultsHtml += '</div>';
+                resultDisplay.innerHTML = resultsHtml;
+
+                // Display suggestions
+                suggestionsContainer.innerHTML = `
+                    <div class="mt-8 pt-6 border-t border-slate-700/50">
+                        <h4 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="lightbulb" class="text-yellow-400"></i>Agent's Suggestions</h4>
+                        <div class="mt-3 glass-pane p-4 rounded-lg text-slate-300">${data.suggestions}</div>
+                    </div>
+                `;
+
+            } else {
+                resultDisplay.innerHTML = `<div class="text-center p-8 bg-red-900/20 rounded-lg"><i data-lucide="alert-triangle" class="w-12 h-12 mx-auto text-red-400"></i><h3 class="mt-4 text-2xl font-bold text-red-400">${title}</h3><p class="mt-2 text-red-300">${message}</p></div>`;
+            }
+            lucide.createIcons();
+        }
+        
+        function copyToClipboard(button, base64Text) {
+            const text = decodeURIComponent(atob(base64Text));
+            navigator.clipboard.writeText(text).then(() => {
+                button.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i><span>Copied!</span>';
+                lucide.createIcons();
+                setTimeout(() => {
+                    button.innerHTML = '<i data-lucide="clipboard" class="w-4 h-4"></i><span>Copy</span>';
+                    lucide.createIcons();
+                }, 2000);
+            });
+        }
+
+        // --- Initialization ---
+        function initPolisherTool() {
+            clearInterval(statusInterval);
+            inputSection.classList.remove('section-hidden');
+            progressSection.classList.add('section-hidden');
+            resultSection.classList.add('section-hidden');
+            
+            document.getElementById('draft-text').value = '';
+            document.getElementById('style-example').value = '';
+            document.querySelectorAll('input[name="style-req"]').forEach(el => el.checked = false);
+            
+            mustIncludeKeywords = [];
+            referenceKeywords = [];
+            renderKeywords('must-include');
+            renderKeywords('reference');
+            
+            setMode('标准');
+            console.log("Polisher tool reset.");
+        }
+
+        startBtn.addEventListener('click', startPolishing);
+        document.addEventListener('DOMContentLoaded', () => {
+            initPolisherTool();
+            setupKeywordInput('must-include-keyword-input', 'must-include');
+            setupKeywordInput('reference-keyword-input', 'reference');
+        });
+    </script>
+</body>
+</html>

@@ -8,7 +8,7 @@ from typing import Dict
 # --- 用户需要配置的参数 ---
 # 建议使用环境变量或安全的密钥管理服务
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-OPENAI_API_BASE = os.getenv("apibase", "https://api.openai.com/v1")
+OPENAI_API_BASE = os.getenv("apibase", "[https://api.openai.com/v1](https://api.openai.com/v1)")
 MODEL_NAME = os.getenv("qwen3", "qwen3-4b")
 
 # 全局重试次数
@@ -59,5 +59,5 @@ def setup_logging():
 # 模拟数据库来存储每个任务的状态
 conversion_tasks: Dict[str, Dict] = {}
 background_tasks: Dict[str, Dict] = {}
-style_transfer_tasks: Dict[str, Dict] = {} 
+style_transfer_tasks: Dict[str, Dict] = {} # 新增：用于存储文本润色任务的状态
 

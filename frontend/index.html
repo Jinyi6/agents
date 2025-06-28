@@ -195,6 +195,29 @@
                             </button>
                         </div>
                     </div>
+
+                    <!-- Manuscript Polisher Showcase -->
+                    <div id="polisher-showcase" class="showcase-item section-hidden">
+                        <div class="glass-pane p-6 md:p-8 rounded-2xl flex flex-col">
+                             <h3 class="text-2xl font-bold text-white">Manuscript Polisher</h3>
+                            <p class="text-slate-400 mt-1">Automatically refine your writing for clarity, tone, and style.</p>
+                            <div class="mt-8 flex-grow flex flex-col md:flex-row items-stretch justify-center gap-4">
+                                <!-- Before -->
+                                <div class="w-full md:w-1/2 bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex flex-col">
+                                    <h4 class="text-sm font-semibold text-slate-400 tracking-wider uppercase">BEFORE</h4>
+                                    <p class="mt-3 text-slate-300 text-sm flex-grow">The utilization of advanced computational models has resulted in a paradigm shift, facilitating significant enhancements in predictive accuracy.</p>
+                                </div>
+                                <!-- After -->
+                                <div class="w-full md:w-1/2 bg-slate-900/50 p-4 rounded-lg border border-cyan-400/50 flex flex-col">
+                                    <h4 class="text-sm font-semibold text-cyan-400 tracking-wider uppercase">AFTER</h4>
+                                    <p class="mt-3 text-slate-200 text-sm flex-grow">Using advanced computer models has significantly improved prediction accuracy.</p>
+                                </div>
+                            </div>
+                            <button onclick="showTool('polisher')" class="mt-8 w-full text-center font-semibold py-3 px-4 rounded-lg bg-cyan-400 text-slate-900 hover:bg-cyan-300 transition-all duration-300 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 glow-button">
+                                Launch Agent
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Right: Tool List -->
@@ -218,6 +241,17 @@
                                         <p class="text-sm text-slate-400">Deep research.</p></div>
                                 </div>
                             </div>
+                            <div id="polisher-tool-selector" onclick="showToolShowcase('polisher')" class="tool-list-item p-4 rounded-lg cursor-pointer group">
+                                <div class="flex items-center gap-4">
+                                    <div class="flex-shrink-0 bg-slate-800 h-10 w-10 flex items-center justify-center rounded-lg border border-slate-700 text-cyan-400"><i data-lucide="pencil-ruler" class="w-5 h-5"></i></div>
+                                    <div>
+                                        <h4 class="font-bold text-white group-hover:text-cyan-300 transition-colors">
+                                            <span style="color: #E0FFFF;">Manuscript Polisher</span>
+                                        </h4>
+                                        <p class="text-sm text-slate-400">Refine writing.</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -237,8 +271,15 @@
                 <input id="admin-password-input" type="password" class="mt-4 w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" placeholder="Admin Password">
                 <div id="admin-error-msg" class="text-red-400 text-sm mt-2 hidden"></div>
                 <div class="mt-6 flex gap-4">
-                    <button onclick="handleAdminSubmit()" class="w-full bg-cyan-400 text-slate-900 font-bold py-3 rounded-lg hover:bg-cyan-300 transition-colors">Submit</button>
-                    <button onclick="hideAdminModal()" class="w-full bg-slate-700 text-white font-bold py-3 rounded-lg hover:bg-slate-600 transition-colors">Cancel</button>
+                    <button id="admin-submit-btn" onclick="handleAdminSubmit()" class="w-full bg-cyan-400 text-slate-900 font-bold py-3 rounded-lg hover:bg-cyan-300 transition-colors">Submit</button>
+                    <button id="admin-cancel-btn" onclick="hideAdminModal()" class="w-full bg-slate-700 text-white font-bold py-3 rounded-lg hover:bg-slate-600 transition-colors">Cancel</button>
+                </div>
+            </div>
+            <div id="admin-loading-state" class="glass-pane p-8 rounded-2xl w-full max-w-md hidden">
+                <h3 class="text-2xl font-bold text-white text-center">Authenticating...</h3>
+                <p class="text-slate-400 mt-2 text-center">Please wait, this may take a moment.</p>
+                <div class="mt-6 w-full bg-slate-700 rounded-full h-2.5">
+                    <div id="admin-progress-bar" class="bg-cyan-400 h-2.5 rounded-full transition-all duration-500 progress-bar-animated" style="width: 0%"></div>
                 </div>
             </div>
             <div id="admin-status-display" class="glass-pane p-8 rounded-2xl w-full max-w-2xl hidden">
@@ -266,12 +307,15 @@
         // Admin Modal Elements
         const adminModalContainer = document.getElementById('admin-modal-container');
         const adminPasswordPrompt = document.getElementById('admin-password-prompt');
+        const adminLoadingState = document.getElementById('admin-loading-state');
+        const adminProgressBar = document.getElementById('admin-progress-bar');
         const adminStatusDisplay = document.getElementById('admin-status-display');
         const adminPasswordInput = document.getElementById('admin-password-input');
         const adminErrorMsg = document.getElementById('admin-error-msg');
         const adminStatusContent = document.getElementById('admin-status-content');
         
         let statusInterval;
+        let adminProgressInterval;
 
         // --- Page Navigation & State ---
         function showHome() {
@@ -291,6 +335,9 @@
             } else if (toolName === 'arxiv') {
                 latexToolSection.classList.add('section-hidden');
                 arxivToolSection.classList.remove('section-hidden');
+            } else if (toolName === 'polisher') {
+                window.location.href = 'style_transfer.html';
+                return;
             }
             window.scrollTo(0, 0);
         }
@@ -318,14 +365,29 @@
         function showAdminPrompt() {
             adminModalContainer.classList.remove('modal-hidden');
             adminPasswordPrompt.classList.remove('hidden');
+            adminLoadingState.classList.add('hidden');
             adminStatusDisplay.classList.add('hidden');
             adminPasswordInput.value = '';
             adminErrorMsg.classList.add('hidden');
             adminPasswordInput.focus();
+            clearInterval(adminProgressInterval);
         }
 
         function hideAdminModal() {
             adminModalContainer.classList.add('modal-hidden');
+            clearInterval(adminProgressInterval);
+        }
+
+        function startAdminVirtualProgress() {
+            let progress = 0;
+            adminProgressBar.style.width = '0%';
+            adminProgressInterval = setInterval(() => {
+                progress += 5;
+                adminProgressBar.style.width = `${Math.min(progress, 95)}%`; // Stop at 95% to wait for actual response
+                if (progress >= 100) {
+                    clearInterval(adminProgressInterval);
+                }
+            }, 800); // Simulate progress over ~16 seconds
         }
 
         async function handleAdminSubmit() {
@@ -337,13 +399,23 @@
             }
             adminErrorMsg.classList.add('hidden');
             
+            // Show loading state
+            adminPasswordPrompt.classList.add('hidden');
+            adminLoadingState.classList.remove('hidden');
+            startAdminVirtualProgress();
+
             try {
                 const response = await fetch(`${API_BASE_URL}/api/admin/system_status`, {
                     headers: { 'X-Admin-Password': password }
                 });
+                
+                clearInterval(adminProgressInterval);
+                adminProgressBar.style.width = '100%';
 
                 if (response.status === 403) {
                     adminErrorMsg.textContent = 'Incorrect or invalid password.';
+                    adminPasswordPrompt.classList.remove('hidden');
+                    adminLoadingState.classList.add('hidden');
                     adminErrorMsg.classList.remove('hidden');
                     return;
                 }
@@ -351,15 +423,19 @@
                 
                 const data = await response.json();
                 adminStatusContent.textContent = JSON.stringify(data, null, 2);
-                adminPasswordPrompt.classList.add('hidden');
+                adminLoadingState.classList.add('hidden');
                 adminStatusDisplay.classList.remove('hidden');
 
             } catch (error) {
+                clearInterval(adminProgressInterval);
                 console.error("Failed to fetch admin status:", error);
                 adminErrorMsg.textContent = 'Could not fetch status. Please check your network or contact the administrator.';
+                adminPasswordPrompt.classList.remove('hidden');
+                adminLoadingState.classList.add('hidden');
                 adminErrorMsg.classList.remove('hidden');
             }
         }
+
 
         // --- Generic Log/Progress UI Functions ---
         const logIcons = {
@@ -399,7 +475,7 @@
 
         // --- Initialization ---
         function initializePage() {
-            // Load LaTeX tool HTML
+                        // Load LaTeX tool HTML
             latexToolSection.innerHTML = `
                 <button onclick="showHome()" class="mb-8 flex items-center gap-2 text-slate-400 hover:text-white transition-colors"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Home</button>
                 <div class="glass-pane p-8 md:p-12 rounded-2xl">
