@@ -1,1295 +1,228 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-TZFD3J18T6"></script>
-    <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
+import arxiv
+import csv
+import time
+import os
+import asyncio
+import logging
+import re
+from datetime import datetime, date
+from pathlib import Path
+import shutil
+from openai import AsyncOpenAI
 
-    gtag('config', 'G-TZFD3J18T6');
-    </script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DIA: Do It by Agent - Done more by llm agents</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        body { 
-            font-family: 'Inter', sans-serif;
-            background-color: #020617; /* slate-950 */
-            color: #d1d5db; /* gray-300 */
-        }
-        .glass-pane {
-            background-color: rgba(15, 23, 42, 0.6); /* slate-900 with opacity */
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(51, 65, 85, 0.5); /* slate-700 with opacity */
-        }
-        .brand-gradient {
-            background: linear-gradient(to right, #22d3ee, #0ea5e9); /* cyan-400 to sky-500 */
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .file-drop-zone {
-            border: 2px dashed #334155; /* slate-700 */
-            transition: all 0.3s ease;
-        }
-        .file-drop-zone.dragover {
-            border-color: #22d3ee; /* cyan-400 */
-            background-color: rgba(30, 41, 59, 0.5);
-        }
-        .file-list-item {
-            background-color: #1e293b; /* slate-800 */
-        }
+# 假设您的 config.py 文件在同一个目录下
+from config import (
+    background_tasks, outputs_dir, workspace_dir,
+    OPENAI_API_KEY, OPENAI_API_BASE, MODEL_NAME,
+    MAX_CONCURRENT_TRANSLATIONS
+)
+
+def build_arxiv_query(keyword_phrase: str) -> str:
+    """
+    为给定的关键词短语构建一个高级查询字符串，同时搜索摘要(abs)和标题(ti)。
+    - 对于特殊配置的短语，使用预设的 AND/OR 组合。
+    - 对于其他短语，将所有单词用 AND 连接，每个单词都同时匹配标题或摘要。
+    """
+    _ABS_OR_TI_LLM = '((abs:LLM OR ti:LLM) OR (abs:"Large Language Model" OR ti:"Large Language Model"))'
+    _ABS_OR_TI_RL = '((abs:RL OR ti:RL) OR (abs:"Reinforcement Learning" OR ti:"Reinforcement Learning"))'
+    
+    _SPECIAL_PHRASE_CONFIG = {
+        "large language model agent rl": [_ABS_OR_TI_LLM, '(abs:agent OR ti:agent)', _ABS_OR_TI_RL],
+        "llm rft": [_ABS_OR_TI_LLM, '(abs:RFT OR ti:RFT)'],
+        "llm reinforcement learning finetuning": [_ABS_OR_TI_LLM, _ABS_OR_TI_RL, '(abs:Finetuning OR ti:Finetuning)'],
+        "large language model rl": [_ABS_OR_TI_LLM, _ABS_OR_TI_RL]
+    }
+    
+    phrase_lower = keyword_phrase.lower().strip()
+    if phrase_lower in _SPECIAL_PHRASE_CONFIG:
+        query_parts = _SPECIAL_PHRASE_CONFIG[phrase_lower]
+        return f"({' AND '.join(query_parts)})"
+    else:
+        words = [word for word in keyword_phrase.split() if word]
+        if not words:
+            return ""
         
-        .log-container {
-            font-family: 'Menlo', 'Courier New', Courier, monospace;
-            white-space: pre-wrap;
-            word-break: break-all;
-            font-size: 0.875rem;
-        }
-        .log-entry {
-            padding: 2px 8px;
-            display: flex;
-            align-items: center;
-            border-left: 2px solid transparent;
-        }
-        .log-entry i { margin-right: 10px; flex-shrink: 0; }
-        .log-info { border-left-color: #38bdf8; color: #7dd3fc; } /* sky-400 / sky-300 */
-        .log-success { border-left-color: #4ade80; color: #86efac; } /* green-400 / green-300 */
-        .log-warning { border-left-color: #facc15; color: #fde047; } /* yellow-400 / yellow-300 */
-        .log-error { border-left-color: #f87171; color: #fca5a5; } /* red-400 / red-300 */
-        .log-fatal { background-color: #be185d; color: white; font-weight: bold; border-radius: 4px; } 
+        query_parts = [f'(abs:{word} OR ti:{word})' for word in words]
+        return f"({' AND '.join(query_parts)})"
 
-        .section-hidden, .modal-hidden { display: none !important; }
+def search_arxiv_by_date_range(keywords, start_date_str, end_date_str, max_results, process_log):
+    """根据日期范围从 arXiv 检索论文，并为长关键词组执行补充搜索。"""
+    unique_papers = {}
+    try:
+        filter_start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        filter_end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        raise ValueError(f"日期格式无效，请使用 YYYY-MM-DD。")
+
+    if filter_start_date > filter_end_date:
+        raise ValueError("起始日期不能晚于结束日期。")
+
+    process_log.append(f"INFO: 开始检索，日期范围: {start_date_str} 到 {end_date_str}")
+    logging.info(f"开始检索，日期范围: {start_date_str} 到 {end_date_str}")
+
+    def _perform_search(query_keyword, original_keyword_for_result):
+        advanced_query = build_arxiv_query(query_keyword)
+        if not advanced_query:
+            process_log.append(f"INFO: 查询关键词 '{query_keyword}' 为空，已跳过。")
+            return
+            
+        log_message_prefix = "补充" if query_keyword != original_keyword_for_result else ""
+        process_log.append(f"INFO: 正在执行{log_message_prefix}搜索 '{query_keyword}' (查询: {advanced_query})")
+        logging.info(f"正在执行{log_message_prefix}搜索 '{query_keyword}' (查询: {advanced_query})")
         
-        .progress-bar-animated {
-            background-image: linear-gradient(45deg, rgba(255, 255, 255, .15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, .15) 50%, rgba(255, 255, 255, .15) 75%, transparent 75%, transparent);
-            background-size: 1rem 1rem;
-            animation: progress-bar-stripes 1s linear infinite;
-        }
-        @keyframes progress-bar-stripes {
-            from { background-position: 1rem 0; }
-            to { background-position: 0 0; }
-        }
+        try:
+            search = arxiv.Search(
+                query=advanced_query,
+                max_results=max_results * 2,
+                sort_by=arxiv.SortCriterion.SubmittedDate,
+                sort_order=arxiv.SortOrder.Descending
+            )
+            retrieved_count = 0
+            for result in search.results():
+                if retrieved_count >= max_results: break
+                paper_date = result.published.date()
+                if filter_start_date <= paper_date <= filter_end_date:
+                    if result.entry_id not in unique_papers:
+                        unique_papers[result.entry_id] = {
+                            "title": result.title,
+                            "published_date": paper_date.strftime("%Y-%m-%d"),
+                            "summary_en": result.summary.replace("\n", " "),
+                            "authors": [author.name for author in result.authors],
+                            "arxiv_link": result.entry_id,
+                            "pdf_link": result.pdf_url,
+                            "original_keyword": original_keyword_for_result
+                        }
+                        retrieved_count += 1
+            process_log.append(f"SUCCESS: {log_message_prefix}搜索 '{query_keyword}' 找到 {retrieved_count} 篇新论文。")
+        except Exception as e:
+            logging.error(f"搜索关键词 '{query_keyword}' 时出错: {e}")
+            process_log.append(f"WARNING: 搜索关键词 '{query_keyword}' 时出错: {e}")
 
-        .glow-button {
-            box-shadow: 0 0 5px #22d3ee, 0 0 10px #22d3ee, 0 0 15px #0ea5e9;
-        }
+    for keyword in keywords:
+        _perform_search(keyword, keyword)
+        time.sleep(3)
 
-        .showcase-item { animation: fadeIn 0.5s ease-in-out; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        keyword_parts = keyword.split()
+        if len(keyword_parts) > 3:
+            supplementary_keyword = " ".join(keyword_parts[:-1])
+            process_log.append(f"INFO: 关键词 '{keyword}' 包含超过3个词，将执行一次补充搜索。")
+            
+            _perform_search(supplementary_keyword, keyword)
+            time.sleep(3)
+
+    total_found = len(unique_papers)
+    process_log.append(f"SUCCESS: 所有关键词检索完成，共找到 {total_found} 篇不重复的论文。")
+    logging.info(f"所有关键词检索完成，共找到 {total_found} 篇不重复的论文。")
+    return list(unique_papers.values())
+
+
+async def translate_one_abstract(aclient, abstract_en, target_language, semaphore):
+    """使用 LLM 异步翻译单个摘要。"""
+    if not abstract_en or not abstract_en.strip(): return ""
+    async with semaphore:
+        try:
+            prompt_content = f"Please translate the following academic abstract into {target_language}. Keep the original formatting and technical terms. Abstract: "
+            response = await aclient.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {"role": "system", "content": prompt_content},
+                    {"role": "user", "content": abstract_en}
+                ],
+                temperature=0.2,
+                max_tokens=4000
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            logging.error(f"翻译摘要时出错: {e}")
+            return f"翻译错误: {e}"
+
+def sanitize_filename_part(text: str) -> str:
+    """清理字符串，使其可安全地用于文件名。"""
+    text = re.sub(r'[\s,]+', '_', text)
+    text = re.sub(r'[^\w\-_.]', '', text)
+    return text[:50]
+
+async def run_arxiv_search_and_process(run_id: str, request_params: dict):
+    """后台任务的主执行函数：搜索、翻译、保存。"""
+    process_log = background_tasks[run_id]['summary']
+    work_dir = workspace_dir / f"work_dir_{run_id}"
+    work_dir.mkdir(exist_ok=True)
+    
+    try:
+        papers = search_arxiv_by_date_range(
+            keywords=request_params['keywords'],
+            start_date_str=request_params['start_date'],
+            end_date_str=request_params['end_date'],
+            max_results=request_params['max_results'],
+            process_log=process_log
+        )
+        background_tasks[run_id]['summary'] = process_log
+
+        if not papers:
+            process_log.append("INFO: 未找到符合条件的论文，任务结束。")
+            background_tasks[run_id].update({"status": "completed", "summary": process_log})
+            return
+
+        target_language = request_params.get('target_language')
+        if target_language and target_language.strip():
+            process_log.append(f"INFO: 开始将 {len(papers)} 篇论文摘要翻译为 {target_language}...")
+            background_tasks[run_id].update({"status": "translating", "summary": process_log})
+            
+            aclient = AsyncOpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_API_BASE)
+            semaphore = asyncio.Semaphore(MAX_CONCURRENT_TRANSLATIONS)
+            
+            translation_tasks = [
+                translate_one_abstract(aclient, paper['summary_en'], target_language, semaphore)
+                for paper in papers
+            ]
+            translated_summaries = await asyncio.gather(*translation_tasks, return_exceptions=True)
+            
+            for paper, translated in zip(papers, translated_summaries):
+                paper['summary_translated'] = translated if not isinstance(translated, Exception) else f"翻译失败: {translated}"
+            process_log.append("SUCCESS: 所有摘要翻译完成。")
+        else:
+            process_log.append("INFO: 无需翻译。")
+            for paper in papers:
+                paper['summary_translated'] = ""
+
+        topic_str = sanitize_filename_part("_".join(request_params['keywords']))
+        lang_str = sanitize_filename_part(target_language) if target_language else "en"
+        start_str = request_params['start_date']
+        end_str = request_params['end_date']
+        count = len(papers)
+        csv_filename = f"arxiv_papers_{topic_str}_{start_str}_to_{end_str}_{lang_str}_{count}.csv"
+        output_path = outputs_dir / csv_filename
         
-        .tool-list-item {
-            transition: all 0.2s ease-in-out;
-            border-left: 3px solid transparent;
-        }
-        .tool-list-item.active {
-            background-color: #1e293b; /* slate-800 */
-            border-left-color: #22d3ee; /* cyan-400 */
-        }
+        process_log.append(f"INFO: 准备将结果写入文件: {csv_filename}")
         
-        .image-showcase-container { perspective: 1500px; }
-        .image-showcase-item {
-            transition: transform 0.5s ease-out;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2), 0 0 80px rgba(34, 211, 238, 0.1);
-        }
-        .image-showcase-container:hover .image-showcase-item-before { transform: rotateY(-10deg) scale(1.02); }
-        .image-showcase-container:hover .image-showcase-item-after { transform: rotateY(10deg) scale(1.02); }
-
-        .conversion-arrow { animation: bounce-horizontal 2s infinite; }
-        @keyframes bounce-horizontal {
-            0%, 100% { transform: translateX(0); }
-            50% { transform: translateX(10px); }
-        }
-
-        /* Keyword Input */
-        .keyword-tag {
-            background-color: #334155; /* slate-700 */
-            color: #cbd5e1; /* slate-300 */
-            cursor: move; /* Change cursor to indicate draggable */
-        }
-        .keyword-tag.dragging {
-            opacity: 0.5;
-        }
-
-        /* Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(4px);
-            z-index: 50;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Tooltip styles from Polisher */
-        .tooltip {
-            position: relative;
-            display: inline-block;
-        }
-        .tooltip .tooltiptext {
-            visibility: hidden;
-            width: 240px;
-            background-color: #1e293b;
-            color: #fff;
-            text-align: left;
-            border-radius: 6px;
-            padding: 8px 12px;
-            position: absolute;
-            z-index: 1;
-            bottom: 125%;
-            left: 50%;
-            margin-left: -120px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            font-size: 0.875rem;
-            line-height: 1.25rem;
-            border: 1px solid #334155;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-        }
-        .tooltip:hover .tooltiptext {
-            visibility: visible;
-            opacity: 1;
-        }
-    </style>
-</head>
-<body class="antialiased">
-
-    <div id="app" class="max-w-7xl mx-auto p-4 md:p-8">
-        <header class="flex justify-between items-center py-4">
-            <div class="flex items-center gap-3 cursor-pointer" onclick="showHome()">
-                <img src="logo.jpg" alt="DIA Logo" class="h-10 w-10 rounded-lg">
-                <h1 class="text-2xl font-bold text-white tracking-wider">DIA</h1>
-                <h1 class="text-1xl ftext-white tracking-wider">Do It by Agent (β version)</h1>
-            </div>
-            <nav class="flex items-center gap-6 text-sm font-medium">
-                <a href="javascript:void(0)" onclick="showAbout()" class="text-slate-400 hover:text-white transition-colors">About</a>
-                <a href="javascript:void(0)" onclick="showAdminPrompt()" class="text-slate-400 hover:text-white transition-colors">Admin</a>
-                <a href="#" target="_blank" class="text-slate-400 hover:text-white transition-colors flex items-center gap-2">
-                    GitHub
-                    <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
-                </a>
-            </nav>
-        </header>
-
-        <main id="home-section" class="mt-16 md:mt-24">
-            <div class="text-center">
-                <h2 class="text-5xl md:text-7xl font-black text-white leading-tight">Complex Tasks,<br> <span class="brand-gradient">Agent-Simplicity.</span></h2>
-                <p class="mt-6 text-lg text-slate-400 max-w-xl mx-auto">Why do it yourself when you can <span class="text-white font-medium">Do It by Agent</span>? DIA provides specialized AI agents that turn your complex goals into simple results. Let's get started.</p>
-            </div>
-            
-            <div class="mt-20 flex flex-col lg:flex-row gap-12">
-                <div id="showcase-area" class="w-full lg:w-3/4">
-                    <div id="latex-showcase" class="showcase-item">
-                        <div class="glass-pane p-6 md:p-8 rounded-2xl">
-                             <h3 class="text-2xl font-bold text-white">LaTeX Format Converter</h3>
-                            <p class="text-slate-400 mt-1">Migrate your legacy paper to a new template easily.</p>
-                            <div class="mt-8 image-showcase-container flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8">
-                                <div class="text-center image-showcase-item image-showcase-item-before">
-                                    <span class="text-xs font-semibold text-slate-500 tracking-widest uppercase">NeurIPS Template</span>
-                                    <img src="old.png" alt="Before conversion example" class="mt-2 rounded-lg border-2 border-slate-700 w-full max-w-xs">
-                                </div>
-                                <div class="my-4 md:my-0"><i data-lucide="arrow-right" class="w-12 h-12 text-cyan-400 conversion-arrow md:rotate-0 rotate-90"></i></div>
-                                <div class="text-center image-showcase-item image-showcase-item-after">
-                                    <span class="text-xs font-semibold text-slate-500 tracking-widest uppercase">COLM Template</span>
-                                    <img src="new.png" alt="After conversion example" class="mt-2 rounded-lg border-2 border-slate-700 w-full max-w-xs">
-                                </div>
-                            </div>
-                            <button onclick="showTool('latex')" class="mt-8 w-full text-center font-semibold py-3 px-4 rounded-lg bg-cyan-400 text-slate-900 hover:bg-cyan-300 transition-all duration-300 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 glow-button">
-                                Launch Agent
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="arxiv-showcase" class="showcase-item section-hidden">
-                        <div class="glass-pane p-6 md:p-8 rounded-2xl">
-                             <h3 class="text-2xl font-bold text-white">ACL: ArXivCooL</h3>
-                            <p class="text-slate-400 mt-1">Search arXiv papers by keywords and date, optionally translate, and generate a CSV report.</p>
-                             <div class="mt-8 h-full min-h-[400px] flex items-center justify-center">
-                                <i data-lucide="file-search-2" class="w-24 h-24 text-cyan-500"></i>
-                            </div>
-                             <button onclick="showTool('arxiv')" class="mt-8 w-full text-center font-semibold py-3 px-4 rounded-lg bg-cyan-400 text-slate-900 hover:bg-cyan-300 transition-all duration-300 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 glow-button">
-                                Launch Agent
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="polisher-showcase" class="showcase-item section-hidden">
-                        <div class="glass-pane p-6 md:p-8 rounded-2xl flex flex-col">
-                             <h3 class="text-2xl font-bold text-white">Manuscript Polisher</h3>
-                            <p class="text-slate-400 mt-1">Automatically refine your writing for clarity, tone, and style.</p>
-                            <div class="mt-8 flex-grow flex flex-col md:flex-row items-stretch justify-center gap-4">
-                                <div class="w-full md:w-1/2 bg-slate-900/50 p-4 rounded-lg border border-slate-700 flex flex-col">
-                                    <h4 class="text-sm font-semibold text-slate-400 tracking-wider uppercase">BEFORE</h4>
-                                    <p class="mt-3 text-slate-300 text-sm flex-grow">The utilization of advanced computational models has resulted in a paradigm shift, facilitating significant enhancements in predictive accuracy.</p>
-                                </div>
-                                <div class="w-full md:w-1/2 bg-slate-900/50 p-4 rounded-lg border border-cyan-400/50 flex flex-col">
-                                    <h4 class="text-sm font-semibold text-cyan-400 tracking-wider uppercase">AFTER</h4>
-                                    <p class="mt-3 text-slate-200 text-sm flex-grow">Using advanced computer models has significantly improved prediction accuracy.</p>
-                                </div>
-                            </div>
-                            <button onclick="showTool('polisher')" class="mt-8 w-full text-center font-semibold py-3 px-4 rounded-lg bg-cyan-400 text-slate-900 hover:bg-cyan-300 transition-all duration-300 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 glow-button">
-                                Launch Agent
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="tool-list-area" class="w-full lg:w-1/4">
-                    <div class="glass-pane p-4 rounded-2xl">
-                        <p class="px-4 py-2 text-sm font-semibold text-white">Available Agents</p>
-                        <div class="space-y-1 mt-2">
-                             <div id="latex-tool-selector" onclick="showToolShowcase('latex')" class="tool-list-item active p-4 rounded-lg cursor-pointer group">
-                                <div class="flex items-center gap-4">
-                                    <div class="flex-shrink-0 bg-slate-800 h-10 w-10 flex items-center justify-center rounded-lg border border-slate-700 text-cyan-400"><i data-lucide="file-text" class="w-5 h-5"></i></div>
-                                    <div><h4 class="font-bold text-white group-hover:text-cyan-300 transition-colors"><span style="color: #E0FFFF;">LaTeX Converter</span></h4><p class="text-sm text-slate-400">Reformat papers.</p></div>
-                                </div>
-                            </div>
-                             <div id="arxiv-tool-selector" onclick="showToolShowcase('arxiv')" class="tool-list-item p-4 rounded-lg cursor-pointer group">
-                                <div class="flex items-center gap-4">
-                                    <div class="flex-shrink-0 bg-slate-800 h-10 w-10 flex items-center justify-center rounded-lg border border-slate-700 text-cyan-400"><i data-lucide="file-search-2" class="w-5 h-5"></i></div>
-                                    <div>
-                                        <h4 class="font-bold text-white">
-                                            <span style="color: #E0FFFF;">ACL: A</span>rXiv<span style="color: #E0FFFF;">C</span>oo<span style="color: #E0FFFF;">L</span>
-                                        </h4>
-                                        <p class="text-sm text-slate-400">Deep research.</p></div>
-                                </div>
-                            </div>
-                            <div id="polisher-tool-selector" onclick="showToolShowcase('polisher')" class="tool-list-item p-4 rounded-lg cursor-pointer group">
-                                <div class="flex items-center gap-4">
-                                    <div class="flex-shrink-0 bg-slate-800 h-10 w-10 flex items-center justify-center rounded-lg border border-slate-700 text-cyan-400"><i data-lucide="pencil-ruler" class="w-5 h-5"></i></div>
-                                    <div>
-                                        <h4 class="font-bold text-white group-hover:text-cyan-300 transition-colors">
-                                            <span style="color: #E0FFFF;">Manuscript Polisher</span>
-                                        </h4>
-                                        <p class="text-sm text-slate-400">Refine writing.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
+        fieldnames = ["原始关键词", "论文标题", "发表日期", "英文摘要", f"翻译摘要 ({lang_str})", "作者列表", "arxiv链接", "PDF链接"]
+        with open(output_path, 'w', newline='', encoding='utf-8-sig') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for paper in papers:
+                writer.writerow({
+                    "原始关键词": paper.get("original_keyword", "N/A"),
+                    "论文标题": paper['title'],
+                    "发表日期": paper['published_date'],
+                    "英文摘要": paper['summary_en'],
+                    f"翻译摘要 ({lang_str})": paper['summary_translated'],
+                    "作者列表": ", ".join(paper['authors']),
+                    "arxiv链接": paper['arxiv_link'],
+                    "PDF链接": paper.get('pdf_link', 'N/A')
+                })
         
-        <div id="latex-tool-section" class="section-hidden"></div>
-        <div id="arxiv-tool-section" class="section-hidden"></div>
-        <div id="polisher-tool-section" class="section-hidden"></div>
-        <div id="about-section" class="section-hidden"></div>
-        
-        <div id="admin-modal-container" class="modal-overlay modal-hidden">
-            <div id="admin-password-prompt" class="glass-pane p-8 rounded-2xl w-full max-w-md">
-                <h3 class="text-2xl font-bold text-white">Admin Access</h3>
-                <p class="text-slate-400 mt-2">Please enter the password to view system status.</p>
-                <input id="admin-password-input" type="password" class="mt-4 w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" placeholder="Admin Password">
-                <div id="admin-error-msg" class="text-red-400 text-sm mt-2 hidden"></div>
-                <div class="mt-6 flex gap-4">
-                    <button id="admin-submit-btn" onclick="handleAdminSubmit()" class="w-full bg-cyan-400 text-slate-900 font-bold py-3 rounded-lg hover:bg-cyan-300 transition-colors">Submit</button>
-                    <button id="admin-cancel-btn" onclick="hideAdminModal()" class="w-full bg-slate-700 text-white font-bold py-3 rounded-lg hover:bg-slate-600 transition-colors">Cancel</button>
-                </div>
-            </div>
-            <div id="admin-loading-state" class="glass-pane p-8 rounded-2xl w-full max-w-md hidden">
-                <h3 class="text-2xl font-bold text-white text-center">Authenticating...</h3>
-                <p class="text-slate-400 mt-2 text-center">Please wait, this may take a moment.</p>
-                <div class="mt-6 w-full bg-slate-700 rounded-full h-2.5">
-                    <div id="admin-progress-bar" class="bg-cyan-400 h-2.5 rounded-full transition-all duration-500 progress-bar-animated" style="width: 0%"></div>
-                </div>
-            </div>
-            <div id="admin-status-display" class="glass-pane p-8 rounded-2xl w-full max-w-2xl hidden">
-                <h3 class="text-2xl font-bold text-white">System Status</h3>
-                <pre id="admin-status-content" class="mt-4 bg-slate-900/70 p-4 rounded-lg text-sm text-slate-300 overflow-x-auto"></pre>
-                <button onclick="hideAdminModal()" class="mt-6 w-full bg-slate-700 text-white font-bold py-3 rounded-lg hover:bg-slate-600 transition-colors">Close</button>
-            </div>
-        </div>
-        
-        <footer class="mt-24 py-8 text-center text-slate-500 text-sm"><p id="copyright"></p></footer>
-    </div>
-
-    <script>
-        lucide.createIcons();
-        const API_BASE_URL = 'https://doitbyagent.onrender.com';
-
-        // --- DOM Elements ---
-        const homeSection = document.getElementById('home-section');
-        const latexToolSection = document.getElementById('latex-tool-section');
-        const arxivToolSection = document.getElementById('arxiv-tool-section');
-        const polisherToolSection = document.getElementById('polisher-tool-section');
-        const aboutSection = document.getElementById('about-section');
-        const copyrightEl = document.getElementById('copyright');
-
-        // Admin Modal Elements
-        const adminModalContainer = document.getElementById('admin-modal-container');
-        const adminPasswordPrompt = document.getElementById('admin-password-prompt');
-        const adminLoadingState = document.getElementById('admin-loading-state');
-        const adminProgressBar = document.getElementById('admin-progress-bar');
-        const adminStatusDisplay = document.getElementById('admin-status-display');
-        const adminPasswordInput = document.getElementById('admin-password-input');
-        const adminErrorMsg = document.getElementById('admin-error-msg');
-        const adminStatusContent = document.getElementById('admin-status-content');
-        
-        let statusInterval;
-        let adminProgressInterval;
-
-        // --- Page Navigation & State ---
-        function showHome() {
-            homeSection.classList.remove('section-hidden');
-            latexToolSection.classList.add('section-hidden');
-            arxivToolSection.classList.add('section-hidden');
-            polisherToolSection.classList.add('section-hidden');
-            aboutSection.classList.add('section-hidden');
-            window.scrollTo(0, 0);
-        }
-
-        function showTool(toolName) {
-            homeSection.classList.add('section-hidden');
-            aboutSection.classList.add('section-hidden');
-            latexToolSection.classList.add('section-hidden');
-            arxivToolSection.classList.add('section-hidden');
-            polisherToolSection.classList.add('section-hidden');
-
-            if (toolName === 'latex') {
-                latexToolSection.classList.remove('section-hidden');
-            } else if (toolName === 'arxiv') {
-                arxivToolSection.classList.remove('section-hidden');
-            } else if (toolName === 'polisher') {
-                polisherToolSection.classList.remove('section-hidden');
-            }
-            window.scrollTo(0, 0);
-        }
-        
-        function showAbout() {
-            homeSection.classList.add('section-hidden');
-            latexToolSection.classList.add('section-hidden');
-            arxivToolSection.classList.add('section-hidden');
-            polisherToolSection.classList.add('section-hidden');
-            aboutSection.classList.remove('section-hidden');
-            window.scrollTo(0, 0);
-        }
-
-        function showToolShowcase(toolKey) {
-            document.querySelectorAll('.showcase-item').forEach(item => item.classList.add('section-hidden'));
-            document.querySelectorAll('.tool-list-item').forEach(item => item.classList.remove('active'));
-            
-            const showcaseToShow = document.getElementById(toolKey + '-showcase');
-            if (showcaseToShow) showcaseToShow.classList.remove('section-hidden');
-
-            const selectorToActivate = document.getElementById(toolKey + '-tool-selector');
-             if (selectorToActivate) selectorToActivate.classList.add('active');
-        }
-
-        // --- Admin Panel Logic ---
-        function showAdminPrompt() {
-            adminModalContainer.classList.remove('modal-hidden');
-            adminPasswordPrompt.classList.remove('hidden');
-            adminLoadingState.classList.add('hidden');
-            adminStatusDisplay.classList.add('hidden');
-            adminPasswordInput.value = '';
-            adminErrorMsg.classList.add('hidden');
-            adminPasswordInput.focus();
-            clearInterval(adminProgressInterval);
-        }
-
-        function hideAdminModal() {
-            adminModalContainer.classList.add('modal-hidden');
-            clearInterval(adminProgressInterval);
-        }
-
-        function startAdminVirtualProgress() {
-            let progress = 0;
-            adminProgressBar.style.width = '0%';
-            adminProgressInterval = setInterval(() => {
-                progress += 5;
-                adminProgressBar.style.width = `${Math.min(progress, 95)}%`; // Stop at 95% to wait for actual response
-                if (progress >= 100) {
-                    clearInterval(adminProgressInterval);
-                }
-            }, 800); // Simulate progress over ~16 seconds
-        }
-
-        async function handleAdminSubmit() {
-            const password = adminPasswordInput.value;
-            if (!password) {
-                adminErrorMsg.textContent = 'Password cannot be empty.';
-                adminErrorMsg.classList.remove('hidden');
-                return;
-            }
-            adminErrorMsg.classList.add('hidden');
-            
-            // Show loading state
-            adminPasswordPrompt.classList.add('hidden');
-            adminLoadingState.classList.remove('hidden');
-            startAdminVirtualProgress();
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/system_status`, {
-                    headers: { 'X-Admin-Password': password }
-                });
-                
-                clearInterval(adminProgressInterval);
-                adminProgressBar.style.width = '100%';
-
-                if (response.status === 403) {
-                    adminErrorMsg.textContent = 'Incorrect or invalid password.';
-                    adminPasswordPrompt.classList.remove('hidden');
-                    adminLoadingState.classList.add('hidden');
-                    adminErrorMsg.classList.remove('hidden');
-                    return;
-                }
-                if (!response.ok) throw new Error(`HTTP Error! Status: ${response.status}`);
-                
-                const data = await response.json();
-                adminStatusContent.textContent = JSON.stringify(data, null, 2);
-                adminLoadingState.classList.add('hidden');
-                adminStatusDisplay.classList.remove('hidden');
-
-            } catch (error) {
-                clearInterval(adminProgressInterval);
-                console.error("Failed to fetch admin status:", error);
-                adminErrorMsg.textContent = 'Could not fetch status. Please check your network or contact the administrator.';
-                adminPasswordPrompt.classList.remove('hidden');
-                adminLoadingState.classList.add('hidden');
-                adminErrorMsg.classList.remove('hidden');
-            }
-        }
-
-
-        // --- Generic Log/Progress UI Functions ---
-        const logIcons = {
-            info: '<i data-lucide="arrow-right-circle" class="w-4 h-4"></i>',
-            success: '<i data-lucide="check-circle-2" class="w-4 h-4"></i>',
-            warning: '<i data-lucide="alert-triangle" class="w-4 h-4"></i>',
-            error: '<i data-lucide="x-circle" class="w-4 h-4"></i>',
-            fatal: '<i data-lucide="skull" class="w-4 h-4"></i>'
-        };
-
-        function addLog(logOutputEl, message, type) {
-            if (!logOutputEl) return;
-            const logEntry = document.createElement('div');
-            logEntry.className = `log-entry log-${type}`;
-            logEntry.innerHTML = `${logIcons[type] || logIcons['info']}<span>${message}</span>`;
-            logOutputEl.appendChild(logEntry);
-            logOutputEl.scrollTop = logOutputEl.scrollHeight; 
-            lucide.createIcons();
-        }
-
-        function updateLogs(logOutputEl, logArray) {
-            if (!logOutputEl) return;
-            logOutputEl.innerHTML = ''; 
-            if(!logArray) return;
-            logArray.forEach(log => {
-                let type = 'info';
-                if (log.includes('SUCCESS') || log.includes('🎉')) type = 'success';
-                else if (log.includes('WARNING')) type = 'warning';
-                else if (log.includes('ERROR') || log.includes('❌')) type = 'error';
-                else if (log.includes('FATAL_ERROR')) type = 'fatal';
-                addLog(logOutputEl, log, type);
-            });
-        }
-        
-        function updateProgressBar(barEl, textEl, percentage, text) {
-            if (!barEl || !textEl) return;
-            barEl.style.width = `${percentage}%`;
-            textEl.innerText = text;
-        }
-
-        // --- Initialization ---
-        function initializePage() {
-            // Load LaTeX tool HTML
-            latexToolSection.innerHTML = `
-                <button onclick="showHome()" class="mb-8 flex items-center gap-2 text-slate-400 hover:text-white transition-colors"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Home</button>
-                <div class="glass-pane p-8 md:p-12 rounded-2xl">
-                    <div class="text-center"><h2 class="text-4xl font-extrabold text-white">LaTeX Format Converter</h2><p class="mt-2 text-slate-400">Upload your files and let our agent handle the rest.</p></div>
-                    <div id="latex-upload-section" class="mt-10">
-                        <div id="latex-file-drop-zone" class="file-drop-zone p-8 rounded-xl text-center cursor-pointer"><i data-lucide="upload-cloud" class="w-16 h-16 mx-auto text-slate-500"></i><p class="mt-4 font-semibold text-white">Drag & drop files here or click to select</p><p class="text-sm text-slate-500">Please provide the original paper and the new template (.zip or .tar.gz)</p><input type="file" id="latex-content-file" class="hidden" multiple><input type="file" id="latex-format-file" class="hidden"></div>
-                        <div class="mt-6 space-y-3" id="latex-file-list"></div>
-                        <button id="latex-start-btn" class="mt-8 w-full bg-cyan-400 text-slate-900 font-bold py-4 px-4 rounded-xl hover:bg-cyan-300 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed transition-all duration-300 text-lg">Start Conversion</button>
-                    </div>
-                    <div id="latex-progress-section" class="mt-10 section-hidden">
-                        <h3 id="latex-progress-title" class="text-2xl font-bold text-center text-white">Conversion in Progress...</h3>
-                        <div class="mt-6 w-full bg-slate-700 rounded-full h-2.5"><div id="latex-progress-bar" class="bg-cyan-400 h-2.5 rounded-full transition-all duration-500 progress-bar-animated" style="width: 0%"></div></div>
-                        <p id="latex-progress-text" class="text-sm text-center mt-2 text-slate-400">Initializing...</p>
-                        <div class="mt-6"><h4 class="font-semibold mb-2 text-white">Agent Log:</h4><div id="latex-log-output" class="w-full h-80 bg-black/50 rounded-xl p-4 overflow-y-auto log-container ring-1 ring-slate-800"></div></div>
-                        <div id="latex-result-section" class="mt-8 text-center section-hidden">
-                           <div id="latex-result-icon" class="w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4"></div>
-                           <h3 id="latex-result-title" class="text-3xl font-extrabold"></h3><p id="latex-result-message" class="text-slate-400 mt-2 max-w-lg mx-auto"></p>
-                           <div class="mt-6 flex gap-4 justify-center">
-                               <a id="latex-download-btn" href="#" class="inline-flex items-center gap-2 bg-green-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-600 transition-all duration-300 shadow-lg hover:shadow-green-500/30 hidden"><i data-lucide="download" class="w-5 h-5"></i> Download Result</a>
-                               <button onclick="initLatexTool()" class="inline-flex items-center gap-2 bg-slate-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-slate-700 transition-all duration-300 shadow-lg hover:shadow-slate-500/30"><i data-lucide="rotate-cw" class="w-5 h-5"></i> Try Again</button>
-                           </div>
-                        </div>
-                    </div>
-                </div>`;
-            
-            // Load ArXiv tool HTML
-            arxivToolSection.innerHTML = `
-                <button onclick="showHome()" class="mb-8 flex items-center gap-2 text-slate-400 hover:text-white transition-colors"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Home</button>
-                <div class="glass-pane p-8 md:p-12 rounded-2xl">
-                    <div class="text-center"><h2 class="text-4xl font-extrabold text-white">ACL: ArXivCooL</h2><p class="mt-2 text-slate-400">Search, translate, and download the latest arXiv papers.</p></div>
-                    <div id="arxiv-upload-section" class="mt-10">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <!-- [MODIFICATION] Added tooltip to Keywords label -->
-                                <div class="flex items-center gap-2">
-                                    <label class="font-semibold text-white">Keywords</label>
-                                    <div class="tooltip">
-                                        <i data-lucide="info" class="w-4 h-4 text-slate-400 cursor-pointer"></i>
-                                        <span class="tooltiptext"><b>Drag to reorder.</b> Priority is from left to right (most to least important). If more than 3 words are in a phrase, the last word may be dropped in a supplementary search.</span>
-                                    </div>
-                                </div>
-                                <div class="mt-2 flex items-center bg-slate-800 border border-slate-600 rounded-lg p-1"><input id="arxiv-keyword-input" type="text" class="flex-grow bg-transparent p-2 text-white focus:outline-none" placeholder="Press Enter to add"><button onclick="addArxivKeyword()" class="bg-cyan-500 hover:bg-cyan-400 rounded-md p-2 ml-2"><i data-lucide="plus" class="w-5 h-5"></i></button></div>
-                                <div id="arxiv-keywords-container" class="mt-2 flex flex-wrap gap-2"></div>
-                            </div>
-                            <div><label class="font-semibold text-white">Target Language (Optional)</label><input id="arxiv-language-input" type="text" class="mt-2 w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" placeholder="e.g. Chinese, Japanese"></div>
-                            <div><label class="font-semibold text-white">Start Date</label><input id="arxiv-start-date" type="date" class="mt-2 w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none"></div>
-                            <div><label class="font-semibold text-white">End Date</label><input id="arxiv-end-date" type="date" class="mt-2 w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none"></div>
-                            <!-- [MODIFICATION] Changed max results to 500 -->
-                            <div class="md:col-span-2"><label for="arxiv-max-results" class="font-semibold text-white flex justify-between"><span>Max Results</span><span id="arxiv-max-results-value">10</span></label><input id="arxiv-max-results" type="range" min="1" max="500" value="10" class="mt-2 w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"></div>
-                        </div>
-                        <button id="arxiv-start-btn" class="mt-8 w-full bg-cyan-400 text-slate-900 font-bold py-4 px-4 rounded-xl hover:bg-cyan-300 transition-all duration-300 text-lg glow-button">Start Search</button>
-                    </div>
-                    <div id="arxiv-progress-section" class="mt-10 section-hidden">
-                         <h3 id="arxiv-progress-title" class="text-2xl font-bold text-center text-white">Search in Progress...</h3>
-                        <div class="mt-6 w-full bg-slate-700 rounded-full h-2.5"><div id="arxiv-progress-bar" class="bg-cyan-400 h-2.5 rounded-full transition-all duration-500 progress-bar-animated" style="width: 0%"></div></div>
-                        <p id="arxiv-progress-text" class="text-sm text-center mt-2 text-slate-400">Initializing...</p>
-                        <div class="mt-6"><h4 class="font-semibold mb-2 text-white">Agent Log:</h4><div id="arxiv-log-output" class="w-full h-80 bg-black/50 rounded-xl p-4 overflow-y-auto log-container ring-1 ring-slate-800"></div></div>
-                        <div id="arxiv-result-section" class="mt-8 text-center section-hidden">
-                           <div id="arxiv-result-icon" class="w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4"></div>
-                           <h3 id="arxiv-result-title" class="text-3xl font-extrabold"></h3><p id="arxiv-result-message" class="text-slate-400 mt-2 max-w-lg mx-auto"></p>
-                           <div class="mt-6 flex gap-4 justify-center">
-                               <a id="arxiv-download-btn" href="#" class="inline-flex items-center gap-2 bg-green-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-600 transition-all duration-300 shadow-lg hover:shadow-green-500/30 hidden"><i data-lucide="download" class="w-5 h-5"></i> Download CSV</a>
-                               <button onclick="initArxivTool()" class="inline-flex items-center gap-2 bg-slate-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-slate-700 transition-all duration-300 shadow-lg hover:shadow-slate-500/30"><i data-lucide="rotate-cw" class="w-5 h-5"></i> New Search</button>
-                           </div>
-                        </div>
-                    </div>
-                </div>`;
-            
-             // Load Polisher tool HTML
-            polisherToolSection.innerHTML = `
-                <button onclick="showHome()" class="mb-8 flex items-center gap-2 text-slate-400 hover:text-white transition-colors"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Home</button>
-                <div class="glass-pane p-8 md:p-12 rounded-2xl">
-                    <div class="text-center">
-                        <h2 class="text-4xl font-extrabold text-white">Manuscript Polisher</h2>
-                        <p class="mt-2 text-slate-400">Refine your text with precision. Provide your draft, specify constraints, and let the agent work its magic.</p>
-                    </div>
-                    <div id="polisher-input-section" class="mt-10">
-                        <div>
-                            <label for="draft-text" class="font-semibold text-white">Your Draft Text</label>
-                            <textarea id="draft-text" class="mt-2 w-full h-40 bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" placeholder="Paste the text you want to polish here..."></textarea>
-                        </div>
-                        <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div>
-                                <label class="font-semibold text-white">Must-Include Keywords</label>
-                                <div class="mt-2 flex items-center bg-slate-800 border border-slate-600 rounded-lg p-1">
-                                    <input id="must-include-keyword-input" type="text" class="flex-grow bg-transparent p-2 text-white focus:outline-none" placeholder="Keywords that must appear verbatim">
-                                    <button onclick="addPolisherKeyword('must-include')" class="bg-cyan-500 hover:bg-cyan-400 rounded-md p-2 ml-2"><i data-lucide="plus" class="w-5 h-5"></i></button>
-                                </div>
-                                <div id="must-include-keywords-container" class="mt-2 flex flex-wrap gap-2"></div>
-                            </div>
-                            <div>
-                                <label class="font-semibold text-white">Reference Keywords</label>
-                                <div class="mt-2 flex items-center bg-slate-800 border border-slate-600 rounded-lg p-1">
-                                    <input id="reference-keyword-input" type="text" class="flex-grow bg-transparent p-2 text-white focus:outline-none" placeholder="Keywords whose meaning must be conveyed">
-                                    <button onclick="addPolisherKeyword('reference')" class="bg-cyan-500 hover:bg-cyan-400 rounded-md p-2 ml-2"><i data-lucide="plus" class="w-5 h-5"></i></button>
-                                </div>
-                                <div id="reference-keywords-container" class="mt-2 flex flex-wrap gap-2"></div>
-                            </div>
-                        </div>
-                        <div class="mt-8">
-                            <label for="style-example" class="font-semibold text-white">Style Reference (Optional)</label>
-                            <textarea id="style-example" class="mt-2 w-full h-24 bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" placeholder="Paste an example of the writing style you want to emulate..."></textarea>
-                        </div>
-                        <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-                            <div>
-                                <label class="font-semibold text-white">Style Requirements (Optional)</label>
-                                <div class="mt-2 grid grid-cols-2 gap-4">
-                                    <label class="glass-pane p-3 rounded-lg cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-cyan-400 transition-all"><input type="checkbox" name="style-req" value="专业学术" class="hidden"><span>Academic</span></label>
-                                    <label class="glass-pane p-3 rounded-lg cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-cyan-400 transition-all"><input type="checkbox" name="style-req" value="口语化" class="hidden"><span>Conversational</span></label>
-                                    <label class="glass-pane p-3 rounded-lg cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-cyan-400 transition-all"><input type="checkbox" name="style-req" value="简洁" class="hidden"><span>Concise</span></label>
-                                    <label class="glass-pane p-3 rounded-lg cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-cyan-400 transition-all"><input type="checkbox" name="style-req" value="普通" class="hidden"><span>Standard</span></label>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="flex items-center gap-2">
-                                    <label class="font-semibold text-white">Processing Mode</label>
-                                    <div class="tooltip">
-                                        <i data-lucide="info" class="w-4 h-4 text-slate-400 cursor-pointer"></i>
-                                        <span class="tooltiptext"><b>Standard:</b> Faster, good results.<br><b>Professional:</b> Slower, runs more iterations for higher quality and diversity.</span>
-                                    </div>
-                                </div>
-                                <div class="mt-2 p-1 bg-slate-800 rounded-lg flex">
-                                    <button id="mode-standard-btn" onclick="setPolisherMode('标准')" class="w-1/2 py-2 text-center rounded-md bg-cyan-500 text-white font-semibold">Standard</button>
-                                    <button id="mode-professional-btn" onclick="setPolisherMode('专业')" class="w-1/2 py-2 text-center rounded-md text-slate-400">Professional</button>
-                                </div>
-                            </div>
-                        </div>
-                        <button id="polisher-start-btn" class="mt-10 w-full bg-cyan-400 text-slate-900 font-bold py-4 px-4 rounded-xl hover:bg-cyan-300 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed transition-all duration-300 text-lg glow-button">Start Polishing</button>
-                    </div>
-                    <div id="polisher-progress-section" class="mt-10 section-hidden">
-                        <h3 id="polisher-progress-title" class="text-2xl font-bold text-center text-white">Polishing in Progress...</h3>
-                        <div class="mt-6 w-full bg-slate-700 rounded-full h-2.5"><div id="polisher-progress-bar" class="bg-cyan-400 h-2.5 rounded-full transition-all duration-500 progress-bar-animated" style="width: 0%"></div></div>
-                        <p id="polisher-progress-text" class="text-sm text-center mt-2 text-slate-400">Initializing...</p>
-                        <div class="mt-6">
-                            <div id="polisher-final-log-summary" class="hidden glass-pane p-3 rounded-lg justify-between items-center"></div>
-                            <div id="polisher-log-wrapper">
-                                <div class="flex justify-between items-center mb-2">
-                                    <h4 class="font-semibold text-white">Agent Log:</h4>
-                                </div>
-                                <div id="polisher-log-output" class="w-full h-60 bg-black/50 rounded-xl p-4 overflow-y-auto log-container ring-1 ring-slate-800"></div>
-                            </div>
-                        </div>
-                        <div id="polisher-result-section" class="mt-8 section-hidden">
-                            <div id="polisher-comparison-section" class="mb-8"></div>
-                        <div id="polisher-result-display"></div>
-                        <div id="polisher-suggestions-container" class="mt-6"></div>
-                        <div class="mt-8 flex gap-4 justify-center">
-                            <button onclick="initPolisherTool()" class="inline-flex items-center gap-2 bg-slate-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-slate-700 transition-all duration-300 shadow-lg hover:shadow-slate-500/30"><i data-lucide="rotate-cw" class="w-5 h-5"></i> Start Over</button>
-                        </div>
-                        </div>
-                    </div>
-                </div>`;
-            
-            // Load About page HTML
-            aboutSection.innerHTML = `
-                <button onclick="showHome()" class="mb-8 flex items-center gap-2 text-slate-400 hover:text-white transition-colors"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Home</button>
-                <div class="glass-pane p-8 md:p-12 rounded-2xl">
-                    <div class="max-w-3xl mx-auto">
-                        <h2 class="text-center text-4xl font-extrabold text-white">About DIA</h2><p class="text-center mt-2 brand-gradient font-semibold">Do It by Agent</p>
-                        <div class="mt-8 text-lg text-slate-300 space-y-4">
-                            <p>DIA is a platform dedicated to simplifying complex, multi-step tasks by wrapping them in powerful, easy-to-use agents. Our mission is to bridge the gap between powerful backend services and the people who need them, eliminating tedious manual work and accelerating productivity.</p>
-                            <p>We believe that the future of software interaction lies in goal-oriented agents that understand user intent and manage the underlying complexity. This LaTeX converter is the first of many tools designed to embody that principle.</p>
-                        </div>
-                        <div class="mt-12 pt-8 border-t border-slate-700/50">
-                            <h3 class="text-2xl font-bold text-white">The Creator</h3>
-                            <div class="mt-4 flex flex-col sm:flex-row items-start gap-6">
-                                <img src="me.jpg" alt="Author's photo" class="w-24 h-24 rounded-full border-2 border-slate-600">
-                                <div><h4 class="text-xl font-semibold text-white">Jinyi Liu</h4><a href="https://liu.jinyi.space" target="_blank" class="text-sky-400 hover:text-sky-300 transition-colors">liu.jinyi.space</a><p class="mt-2 text-slate-400">[Jinyi Liu is a developer passionate about creating AI-driven solutions that simplify complex problems. DIA is a project born from the desire to make powerful automation accessible to everyone.]</p></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-            
-            initLatexTool();
-            initArxivTool();
-            initPolisherTool();
-
-            showToolShowcase('latex');
-            if(copyrightEl) copyrightEl.textContent = `Copyright © ${new Date().getFullYear()} DIA - Do It by Agent. All Rights Reserved.`;
-            lucide.createIcons();
-        }
-
-        // --- LaTeX Tool Specific Logic ---
-        let latexContentFile = null;
-        let latexFormatFile = null;
-
-        function initLatexTool() {
-            clearInterval(statusInterval);
-            const uploadSection = document.getElementById('latex-upload-section');
-            const progressSection = document.getElementById('latex-progress-section');
-            const resultSection = document.getElementById('latex-result-section');
-            
-            uploadSection.classList.remove('section-hidden');
-            progressSection.classList.add('section-hidden');
-            resultSection.classList.add('section-hidden');
-            
-            latexContentFile = null;
-            latexFormatFile = null;
-            document.getElementById('latex-content-file').value = '';
-            document.getElementById('latex-format-file').value = '';
-            updateLatexFileList();
-
-            const dropZone = document.getElementById('latex-file-drop-zone');
-            dropZone.onclick = () => document.getElementById('latex-content-file').click();
-            dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
-            dropZone.ondragleave = () => dropZone.classList.remove('dragover');
-            dropZone.ondrop = (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); handleLatexFileSelection(e.dataTransfer.files); };
-            document.getElementById('latex-content-file').onchange = (e) => handleLatexFileSelection(e.target.files);
-            document.getElementById('latex-start-btn').onclick = startLatexConversion;
-        }
-
-        function handleLatexFileSelection(files) {
-            for (const file of files) {
-                const isAllowed = file.name.endsWith('.zip') || file.name.endsWith('.tar.gz') || file.name.endsWith('.gz');
-                if (!isAllowed) { console.warn(`Unsupported file type skipped: ${file.name}`); continue; }
-                if (latexContentFile === null) latexContentFile = file;
-                else if (latexFormatFile === null) latexFormatFile = file;
-            }
-            updateLatexFileList();
-        }
-
-        function updateLatexFileList() {
-            const container = document.getElementById('latex-file-list');
-            const startBtn = document.getElementById('latex-start-btn');
-            container.innerHTML = '';
-            if (latexContentFile) createLatexFileListItem('Original Paper:', latexContentFile, 'content');
-            if (latexFormatFile) createLatexFileListItem('New Template:', latexFormatFile, 'format');
-            startBtn.disabled = !(latexContentFile && latexFormatFile);
-            startBtn.classList.toggle("glow-button", !startBtn.disabled);
-            lucide.createIcons();
-        }
-
-        function createLatexFileListItem(label, file, type) {
-             const item = document.createElement('div');
-            item.className = 'file-list-item flex items-center justify-between p-3 rounded-lg';
-            item.innerHTML = `<div class="flex items-center gap-3 overflow-hidden"><i data-lucide="file-zip" class="w-5 h-5 text-slate-400 flex-shrink-0"></i><div class="overflow-hidden"><p class="font-semibold text-white truncate">${label}</p><p class="text-sm text-slate-400 truncate">${file.name}</p></div></div><button onclick="removeLatexFile('${type}')" class="text-slate-500 hover:text-red-400 flex-shrink-0 ml-2"><i data-lucide="x" class="w-5 h-5"></i></button>`;
-            document.getElementById('latex-file-list').appendChild(item);
-        }
-
-        function removeLatexFile(type) {
-            if (type === 'content') latexContentFile = null;
-            if (type === 'format') latexFormatFile = null;
-            updateLatexFileList();
-        }
-
-        async function startLatexConversion() {
-             if (!latexContentFile || !latexFormatFile) return;
-
-            document.getElementById('latex-upload-section').classList.add('section-hidden');
-            document.getElementById('latex-progress-section').classList.remove('section-hidden');
-            
-            const logOutput = document.getElementById('latex-log-output');
-            logOutput.innerHTML = '';
-            addLog(logOutput, 'INFO: Agent initialized. Preparing file upload...', 'info');
-
-            const formData = new FormData();
-            formData.append('content_file', latexContentFile);
-            formData.append('format_file', latexFormatFile);
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/latex_format/convert`, { method: 'POST', body: formData });
-                if (!response.ok) { const err = await response.json().catch(()=>({detail:"Unknown error"})); throw new Error(err.detail); }
-                const data = await response.json();
-                addLog(logOutput, `SUCCESS: Task created. Run ID: ${data.run_id}`, 'success');
-                statusInterval = setInterval(() => checkLatexStatus(data.run_id), 3000);
-            } catch (error) {
-                 showLatexResult('error', 'Upload Failed', `Could not start the conversion task: ${error.message}`);
-            }
-        }
-
-        async function checkLatexStatus(runId) {
-             const logOutput = document.getElementById('latex-log-output');
-             try {
-                const response = await fetch(`${API_BASE_URL}/api/latex_format/status/${runId}`);
-                if (!response.ok) throw new Error(`HTTP Error! Status: ${response.status}`);
-                const data = await response.json();
-                
-                updateLogs(logOutput, data.summary);
-                const progress = data.status === 'completed' ? 100 : (data.status === 'failed' ? 100 : 20 + Math.min(70, (data.summary.length * 10)));
-                updateProgressBar(document.getElementById('latex-progress-bar'), document.getElementById('latex-progress-text'), progress, data.status);
-                
-                if (data.status === 'completed' || data.status === 'failed') {
-                    clearInterval(statusInterval);
-                    const resultType = data.status === 'completed' ? 'success' : 'error';
-                    const title = data.status === 'completed' ? 'Conversion Successful!' : 'Task Failed';
-                    const message = data.status === 'completed' ? 'Your document has been successfully converted and is ready for download.' : 'An error occurred during processing. Please check the log for details.';
-                    showLatexResult(resultType, title, message, data.download_url);
-                }
-            } catch (error) {
-                clearInterval(statusInterval);
-                addLog(logOutput, `FATAL_ERROR: Error while checking status: ${error.message}`, 'fatal');
-                showLatexResult('error', 'Status Check Failed', 'Could not retrieve task status.');
-            }
-        }
-
-        function showLatexResult(status, title, message, url = null) {
-            document.getElementById('latex-progress-title').classList.add('section-hidden');
-            document.getElementById('latex-result-section').classList.remove('section-hidden');
-            
-            const resultIcon = document.getElementById('latex-result-icon');
-            const resultTitle = document.getElementById('latex-result-title');
-            const resultMessage = document.getElementById('latex-result-message');
-            const downloadBtn = document.getElementById('latex-download-btn');
-            
-            resultTitle.textContent = title;
-            resultMessage.textContent = message;
-
-            if (status === 'success' && url) {
-                resultIcon.innerHTML = `<i data-lucide="party-popper" class="w-10 h-10 text-black"></i>`;
-                resultIcon.className = 'w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4 bg-gradient-to-br from-green-300 to-green-500';
-                resultTitle.className = "text-3xl font-extrabold text-green-400";
-                downloadBtn.href = `${API_BASE_URL}${url}`;
-                downloadBtn.classList.remove('hidden');
-            } else {
-                resultIcon.innerHTML = `<i data-lucide="alert-octagon" class="w-10 h-10 text-white"></i>`;
-                resultIcon.className = 'w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4 bg-red-500';
-                resultTitle.className = "text-3xl font-extrabold text-red-400";
-                downloadBtn.classList.add('hidden');
-            }
-            lucide.createIcons();
-        }
-
-        // --- ArXiv Tool Specific Logic ---
-        let arxivKeywords = ["LLM"];
-        
-        function initArxivTool() {
-            clearInterval(statusInterval);
-            document.getElementById('arxiv-upload-section').classList.remove('section-hidden');
-            document.getElementById('arxiv-progress-section').classList.add('section-hidden');
-            document.getElementById('arxiv-result-section').classList.add('section-hidden');
-
-            const today = new Date();
-            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-            document.getElementById('arxiv-start-date').value = firstDayOfMonth.toISOString().split('T')[0];
-            document.getElementById('arxiv-end-date').value = today.toISOString().split('T')[0];
-
-            const keywordInput = document.getElementById('arxiv-keyword-input');
-            keywordInput.value = '';
-            keywordInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addArxivKeyword(); }};
-
-            const maxResultsSlider = document.getElementById('arxiv-max-results');
-            const maxResultsValue = document.getElementById('arxiv-max-results-value');
-            maxResultsSlider.oninput = () => { maxResultsValue.textContent = maxResultsSlider.value; };
-            maxResultsValue.textContent = maxResultsSlider.value;
-
-            document.getElementById('arxiv-start-btn').onclick = startArxivSearch;
-            
-            // [MODIFICATION] Setup drag-and-drop for keyword container
-            const keywordsContainer = document.getElementById('arxiv-keywords-container');
-            keywordsContainer.addEventListener('dragover', e => {
-                e.preventDefault();
-                const afterElement = getDragAfterElement(keywordsContainer, e.clientY);
-                const dragging = document.querySelector('.dragging');
-                if (afterElement == null) {
-                    keywordsContainer.appendChild(dragging);
-                } else {
-                    keywordsContainer.insertBefore(dragging, afterElement);
-                }
-            });
-            keywordsContainer.addEventListener('drop', e => {
-                e.preventDefault();
-                updateArxivKeywordOrder();
-            });
-
-            renderArxivKeywords();
-        }
-
-        function addArxivKeyword() {
-            const input = document.getElementById('arxiv-keyword-input');
-            const keyword = input.value.trim();
-            if (keyword && !arxivKeywords.includes(keyword)) {
-                arxivKeywords.push(keyword);
-                renderArxivKeywords();
-            }
-            input.value = '';
-            input.focus();
-        }
-
-        function removeArxivKeyword(keywordToRemove) {
-            arxivKeywords = arxivKeywords.filter(k => k !== keywordToRemove);
-            renderArxivKeywords();
-        }
-        
-        // [NEW FUNCTION] Handle updating keyword order after drag-and-drop
-        function updateArxivKeywordOrder() {
-            const newOrder = [];
-            document.querySelectorAll('#arxiv-keywords-container .keyword-tag').forEach(tag => {
-                // Find the span that holds the keyword text, ignoring the button
-                const textSpan = tag.querySelector('span');
-                if(textSpan) newOrder.push(textSpan.textContent);
-            });
-            arxivKeywords = newOrder;
-            console.log("New keyword order:", arxivKeywords); // For debugging
-        }
-        
-        // [NEW FUNCTION] Helper to determine drop position
-        function getDragAfterElement(container, y) {
-            const draggableElements = [...container.querySelectorAll('.keyword-tag:not(.dragging)')];
-
-            return draggableElements.reduce((closest, child) => {
-                const box = child.getBoundingClientRect();
-                const offset = y - box.top - box.height / 2;
-                if (offset < 0 && offset > closest.offset) {
-                    return { offset: offset, element: child };
-                } else {
-                    return closest;
-                }
-            }, { offset: Number.NEGATIVE_INFINITY }).element;
-        }
-
-        function renderArxivKeywords() {
-            const container = document.getElementById('arxiv-keywords-container');
-            container.innerHTML = '';
-            arxivKeywords.forEach(k => {
-                const tag = document.createElement('span');
-                tag.className = 'keyword-tag flex items-center gap-2 px-3 py-1 rounded-full text-sm';
-                tag.innerHTML = `<span>${k}</span><button onclick="removeArxivKeyword('${k.replace(/'/g, "\\'")}')"><i data-lucide="x" class="w-4 h-4 text-slate-400 hover:text-white"></i></button>`;
-                
-                // [MODIFICATION] Add draggable properties and listeners
-                tag.draggable = true;
-                tag.addEventListener('dragstart', () => {
-                    tag.classList.add('dragging');
-                });
-                tag.addEventListener('dragend', () => {
-                    tag.classList.remove('dragging');
-                });
-
-                container.appendChild(tag);
-            });
-            lucide.createIcons();
-        }
-        
-        async function startArxivSearch() {
-            document.getElementById('arxiv-upload-section').classList.add('section-hidden');
-            document.getElementById('arxiv-progress-section').classList.remove('section-hidden');
-            
-            const logOutput = document.getElementById('arxiv-log-output');
-            logOutput.innerHTML = '';
-            addLog(logOutput, 'INFO: Agent initialized. Preparing to start search...', 'info');
-
-            const searchParams = {
-                keywords: arxivKeywords,
-                start_date: document.getElementById('arxiv-start-date').value,
-                end_date: document.getElementById('arxiv-end-date').value,
-                max_results: parseInt(document.getElementById('arxiv-max-results').value),
-                target_language: document.getElementById('arxiv-language-input').value.trim()
-            };
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/arxiv/start_search`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(searchParams)
-                });
-                if (!response.ok) { const err = await response.json().catch(()=>({detail:"Unknown error"})); throw new Error(err.detail); }
-                const data = await response.json();
-                addLog(logOutput, `SUCCESS: Task created. Run ID: ${data.run_id}`, 'success');
-                statusInterval = setInterval(() => checkArxivStatus(data.run_id), 5000);
-            } catch (error) {
-                showArxivResult('error', 'Start Failed', `Could not start search task: ${error.message}`);
-            }
-        }
-
-        async function checkArxivStatus(runId) {
-             const logOutput = document.getElementById('arxiv-log-output');
-             try {
-                const response = await fetch(`${API_BASE_URL}/api/arxiv/search_status/${runId}`);
-                if (!response.ok) throw new Error(`HTTP Error! Status: ${response.status}`);
-                const data = await response.json();
-                
-                updateLogs(logOutput, data.summary);
-                let progress = 10;
-                if (data.status === 'processing') progress = 40;
-                if (data.status === 'translating') progress = 70;
-                if (data.status === 'completed' || data.status === 'failed') progress = 100;
-                updateProgressBar(document.getElementById('arxiv-progress-bar'), document.getElementById('arxiv-progress-text'), progress, data.status);
-                
-                if (data.status === 'completed' || data.status === 'failed') {
-                    clearInterval(statusInterval);
-                    const resultType = data.status === 'completed' ? 'success' : 'error';
-                    const title = data.status === 'completed' ? 'Search Successful!' : 'Task Failed';
-                    const message = data.status === 'completed' ? 'Your report has been generated and is ready for download.' : 'An error occurred during processing. Please check the log for details.';
-                    showArxivResult(resultType, title, message, data.download_url);
-                }
-            } catch (error) {
-                clearInterval(statusInterval);
-                addLog(logOutput, `FATAL_ERROR: Error while checking status: ${error.message}`, 'fatal');
-                showArxivResult('error', 'Status Check Failed', 'Could not retrieve task status.');
-            }
-        }
-
-        function showArxivResult(status, title, message, url = null) {
-            document.getElementById('arxiv-progress-title').classList.add('section-hidden');
-            document.getElementById('arxiv-result-section').classList.remove('section-hidden');
-            
-            const resultIcon = document.getElementById('arxiv-result-icon');
-            const resultTitle = document.getElementById('arxiv-result-title');
-            const resultMessage = document.getElementById('arxiv-result-message');
-            const downloadBtn = document.getElementById('arxiv-download-btn');
-            
-            resultTitle.textContent = title;
-            resultMessage.textContent = message;
-
-            if (status === 'success' && url) {
-                resultIcon.innerHTML = `<i data-lucide="party-popper" class="w-10 h-10 text-black"></i>`;
-                resultIcon.className = 'w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4 bg-gradient-to-br from-green-300 to-green-500';
-                resultTitle.className = "text-3xl font-extrabold text-green-400";
-                downloadBtn.href = `${API_BASE_URL}${url}`;
-                downloadBtn.download = `arxiv_search_report_${new Date().toISOString()}.csv`;
-                downloadBtn.classList.remove('hidden');
-            } else {
-                resultIcon.innerHTML = `<i data-lucide="alert-octagon" class="w-10 h-10 text-white"></i>`;
-                resultIcon.className = 'w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4 bg-red-500';
-                resultTitle.className = "text-3xl font-extrabold text-red-400";
-                downloadBtn.classList.add('hidden');
-            }
-            lucide.createIcons();
-        }
-
-        // --- Manuscript Polisher Tool Specific Logic ---
-        let polisherMode = '标准'; // Default mode
-        let mustIncludeKeywords = [];
-        let referenceKeywords = [];
-        let polisherOriginalText = '';
-        let polisherStyleExample = '';
-
-        function setupPolisherKeywordInput(inputId, type) {
-            const inputElement = document.getElementById(inputId);
-            if(inputElement) {
-                inputElement.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addPolisherKeyword(type);
-                    }
-                });
-            }
-        }
-        
-        function addPolisherKeyword(type) {
-            const inputEl = document.getElementById(`${type}-keyword-input`);
-            const keyword = inputEl.value.trim();
-            const keywordArray = type === 'must-include' ? mustIncludeKeywords : referenceKeywords;
-            
-            if (keyword && !keywordArray.includes(keyword)) {
-                keywordArray.push(keyword);
-                renderPolisherKeywords(type);
-            }
-            inputEl.value = '';
-            inputEl.focus();
-        }
-
-        function removePolisherKeyword(type, keywordToRemove) {
-            if (type === 'must-include') {
-                mustIncludeKeywords = mustIncludeKeywords.filter(k => k !== keywordToRemove);
-            } else {
-                referenceKeywords = referenceKeywords.filter(k => k !== keywordToRemove);
-            }
-            renderPolisherKeywords(type);
-        }
-
-        function renderPolisherKeywords(type) {
-            const container = document.getElementById(`${type}-keywords-container`);
-            const keywordArray = type === 'must-include' ? mustIncludeKeywords : referenceKeywords;
-            container.innerHTML = '';
-            keywordArray.forEach(k => {
-                const tag = document.createElement('span');
-                tag.className = 'keyword-tag flex items-center gap-2 px-3 py-1 rounded-full text-sm';
-                tag.innerHTML = `<span>${k}</span><button onclick="removePolisherKeyword('${type}', '${k}')"><i data-lucide="x" class="w-4 h-4 text-slate-400 hover:text-white"></i></button>`;
-                container.appendChild(tag);
-            });
-            lucide.createIcons();
-        }
-
-        function setPolisherMode(mode) {
-            polisherMode = mode;
-            const standardBtn = document.getElementById('mode-standard-btn');
-            const professionalBtn = document.getElementById('mode-professional-btn');
-            if (mode === '标准') {
-                standardBtn.classList.add('bg-cyan-500', 'text-white', 'font-semibold');
-                standardBtn.classList.remove('text-slate-400');
-                professionalBtn.classList.remove('bg-cyan-500', 'text-white', 'font-semibold');
-                professionalBtn.classList.add('text-slate-400');
-            } else {
-                professionalBtn.classList.add('bg-cyan-500', 'text-white', 'font-semibold');
-                professionalBtn.classList.remove('text-slate-400');
-                standardBtn.classList.remove('bg-cyan-500', 'text-white', 'font-semibold');
-                standardBtn.classList.add('text-slate-400');
-            }
-        }
-        
-        async function startPolishing() {
-            const draftText = document.getElementById('draft-text').value;
-            if (!draftText.trim()) {
-                alert("Please provide the draft text to be polished.");
-                return;
-            }
-
-            document.getElementById('polisher-input-section').classList.add('section-hidden');
-            document.getElementById('polisher-progress-section').classList.remove('section-hidden');
-            
-            const logOutput = document.getElementById('polisher-log-output');
-            logOutput.innerHTML = '';
-            addLog(logOutput, 'INFO: Agent initialized. Preparing request...', 'info');
-
-            polisherOriginalText = document.getElementById('draft-text').value;
-            polisherStyleExample = document.getElementById('style-example').value;
-            const styleRequirements = Array.from(document.querySelectorAll('input[name="style-req"]:checked')).map(el => el.value);
-
-            const payload = {
-                original_text: polisherOriginalText,
-                must_include_keywords: mustIncludeKeywords,
-                reference_keywords: referenceKeywords,
-                style_requirements: styleRequirements,
-                style_example: polisherStyleExample,
-                mode: polisherMode
-            };
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/style_transfer/run`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!response.ok) { const err = await response.json().catch(()=>({detail:"Unknown error"})); throw new Error(err.detail); }
-                const data = await response.json();
-                addLog(logOutput, `SUCCESS: Task created. Run ID: ${data.run_id}`, 'success');
-                statusInterval = setInterval(() => checkPolisherStatus(data.run_id), 3000);
-            } catch (error) {
-                 showPolisherResult('error', 'Task Start Failed', `Could not start the polishing task: ${error.message}`);
-            }
-        }
-
-        async function checkPolisherStatus(runId) {
-            const logOutput = document.getElementById('polisher-log-output');
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/style_transfer/status/${runId}`);
-                if (!response.ok) throw new Error(`HTTP Error! Status: ${response.status}`);
-                const data = await response.json();
-                
-                updateLogs(logOutput, data.summary);
-                const progress = data.status === 'completed' || data.status === 'failed' ? 100 : (data.summary ? data.summary.length * 10 : 10);
-                updateProgressBar(document.getElementById('polisher-progress-bar'), document.getElementById('polisher-progress-text'), progress, data.status);
-                
-                if (data.status === 'completed') {
-                    clearInterval(statusInterval);
-                    const resultsResponse = await fetch(`${API_BASE_URL}${data.result_url}`);
-                    const resultsData = await resultsResponse.json();
-                    showPolisherResult('success', 'Polishing Complete!', 'Here are the refined versions of your text.', resultsData, polisherOriginalText, polisherStyleExample);
-                } else if (data.status === 'failed') {
-                    clearInterval(statusInterval);
-                    showPolisherResult('error', 'Task Failed', 'An error occurred during processing. Please check the log for details.', null, polisherOriginalText, polisherStyleExample);
-                }
-            } catch (error) {
-                clearInterval(statusInterval);
-                addLog(logOutput, `FATAL_ERROR: Error while checking status: ${error.message}`, 'fatal');
-                showPolisherResult('error', 'Status Check Failed', 'Could not retrieve task status.', null, polisherOriginalText, polisherStyleExample);
-            }
-        }
-
-        function showPolisherResult(status, title, message, data = null, originalText = '', styleExample = '') {
-            document.getElementById('polisher-progress-title').classList.add('section-hidden');
-            document.getElementById('polisher-result-section').classList.remove('section-hidden');
-
-            const resultDisplay = document.getElementById('polisher-result-display');
-            const suggestionsContainer = document.getElementById('polisher-suggestions-container');
-            const comparisonSection = document.getElementById('polisher-comparison-section');
-            const logWrapper = document.getElementById('polisher-log-wrapper');
-            const finalLogSummary = document.getElementById('polisher-final-log-summary');
-            
-            resultDisplay.innerHTML = '';
-            suggestionsContainer.innerHTML = '';
-            comparisonSection.innerHTML = '';
-            finalLogSummary.innerHTML = '';
-            
-            // Handle Log Collapsing
-            logWrapper.classList.add('hidden');
-            const logOutput = document.getElementById('polisher-log-output');
-            const lastLogEntry = logOutput.lastElementChild?.outerHTML || `<div class="log-entry log-${status === 'success' ? 'success' : 'error'}"><span>${message}</span></div>`;
-
-            finalLogSummary.innerHTML = `
-                <div class="flex-grow">${lastLogEntry}</div>
-                <button onclick="
-                    const wrapper = document.getElementById('polisher-log-wrapper'); 
-                    wrapper.classList.toggle('hidden'); 
-                    this.textContent = wrapper.classList.contains('hidden') ? 'Show Full Log' : 'Hide Full Log';
-                " class="text-sm text-cyan-400 hover:text-white transition-colors ml-4">Show Full Log</button>
-            `;
-            finalLogSummary.classList.remove('hidden');
-
-            // Display Original vs. Reference
-            comparisonSection.innerHTML = `
-                <h3 class="text-2xl font-bold text-white mb-4">Review Your Inputs</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <h4 class="text-sm font-semibold text-slate-400 tracking-wider uppercase mb-2">ORIGINAL DRAFT</h4>
-                        <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700 text-slate-300 text-sm" style="max-height: 200px; overflow-y: auto;">
-                            ${originalText.replace(/\n/g, '<br>') || '<p class="text-slate-500">No original text provided.</p>'}
-                        </div>
-                    </div>
-                    <div>
-                        <h4 class="text-sm font-semibold text-slate-400 tracking-wider uppercase mb-2">STYLE REFERENCE</h4>
-                        <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700 text-slate-300 text-sm" style="max-height: 200px; overflow-y: auto;">
-                            ${styleExample.replace(/\n/g, '<br>') || '<p class="text-slate-500">No style reference provided.</p>'}
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            // Display Polished Versions (Responsive Grid)
-            if (status === 'success' && data && data.results) {
-                let resultsHtml = '<h3 class="text-2xl font-bold text-white mt-8 mb-4">Polished Versions</h3>';
-                resultsHtml += '<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">';
-                data.results.forEach((res, index) => {
-                    resultsHtml += `
-                        <div class="glass-pane p-4 rounded-lg flex flex-col">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="font-semibold text-cyan-400">Option ${index + 1}</span>
-                                <button onclick="copyToClipboard(this, '${btoa(encodeURIComponent(res))}')" class="flex items-center gap-2 text-sm text-slate-400 hover:text-white"><i data-lucide="clipboard" class="w-4 h-4"></i><span>Copy</span></button>
-                            </div>
-                            <p class="text-slate-300 flex-grow">${res.replace(/\n/g, '<br>')}</p>
-                        </div>
-                    `;
-                });
-                resultsHtml += '</div>';
-                resultDisplay.innerHTML = resultsHtml;
-
-                if(data.suggestions) {
-                    suggestionsContainer.innerHTML = `
-                        <div class="mt-8 pt-6 border-t border-slate-700/50">
-                            <h4 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="lightbulb" class="text-yellow-400"></i>Agent's Suggestions</h4>
-                            <div class="mt-3 glass-pane p-4 rounded-lg text-slate-300">${data.suggestions}</div>
-                        </div>
-                    `;
-                }
-
-            } else {
-                resultDisplay.innerHTML = `<div class="text-center mt-8 p-8 bg-red-900/20 rounded-lg"><i data-lucide="alert-triangle" class="w-12 h-12 mx-auto text-red-400"></i><h3 class="mt-4 text-2xl font-bold text-red-400">${title}</h3><p class="mt-2 text-red-300">${message}</p></div>`;
-            }
-            lucide.createIcons();
-        }
-        
-        function copyToClipboard(button, base64Text) {
-            const text = decodeURIComponent(atob(base64Text));
-            navigator.clipboard.writeText(text).then(() => {
-                button.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i><span>Copied!</span>';
-                lucide.createIcons();
-                setTimeout(() => {
-                    button.innerHTML = '<i data-lucide="clipboard" class="w-4 h-4"></i><span>Copy</span>';
-                    lucide.createIcons();
-                }, 2000);
-            });
-        }
-
-        function initPolisherTool() {
-            clearInterval(statusInterval);
-            document.getElementById('polisher-input-section').classList.remove('section-hidden');
-            document.getElementById('polisher-progress-section').classList.add('section-hidden');
-            document.getElementById('polisher-result-section').classList.add('section-hidden');
-            
-            document.getElementById('draft-text').value = '';
-            document.getElementById('style-example').value = '';
-            document.querySelectorAll('input[name="style-req"]').forEach(el => el.checked = false);
-            
-            mustIncludeKeywords = [];
-            referenceKeywords = [];
-            renderPolisherKeywords('must-include');
-            renderPolisherKeywords('reference');
-            
-            setPolisherMode('标准');
-            
-            document.getElementById('polisher-start-btn').onclick = startPolishing;
-            setupPolisherKeywordInput('must-include-keyword-input', 'must-include');
-            setupPolisherKeywordInput('reference-keyword-input', 'reference');
-
-            // Reset new/modified elements
-            document.getElementById('polisher-comparison-section').innerHTML = '';
-            document.getElementById('polisher-result-display').innerHTML = '';
-            document.getElementById('polisher-suggestions-container').innerHTML = '';
-            document.getElementById('polisher-final-log-summary').classList.add('hidden');
-            document.getElementById('polisher-log-wrapper').classList.remove('hidden');
-            polisherOriginalText = '';
-            polisherStyleExample = '';
-        }
-        
-        document.addEventListener('DOMContentLoaded', initializePage);
-    </script>
-</body>
-</html>
+        process_log.append("🎉 SUCCESS: 任务成功完成！")
+        background_tasks[run_id].update({
+            "status": "completed",
+            "summary": process_log,
+            "output_path": str(output_path)
+        })
+
+    except Exception as e:
+        logging.error(f"Run ID {run_id}: 处理过程中发生致命错误: {e}", exc_info=True)
+        process_log.append(f"❌ FATAL_ERROR: {e}")
+        background_tasks[run_id].update({"status": "failed", "summary": process_log})
+    finally:
+        if work_dir.exists():
+            shutil.rmtree(work_dir)
+            logging.info(f"Run ID {run_id}: 已清理临时工作目录。")

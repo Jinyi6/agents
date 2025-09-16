@@ -10,33 +10,43 @@ from pathlib import Path
 import shutil
 from openai import AsyncOpenAI
 
+# 假设您的 config.py 文件在同一个目录下
 from config import (
     background_tasks, outputs_dir, workspace_dir,
     OPENAI_API_KEY, OPENAI_API_BASE, MODEL_NAME,
     MAX_CONCURRENT_TRANSLATIONS
 )
 
-def build_advanced_query_refactored(keyword_phrase: str) -> str:
-    """为给定的关键词短语构建一个仅针对 arXiv 摘要 (abs) 的高级查询字符串。"""
-    # [修改点 0]：将具体的 prompt 内容替换为 "..."
-    _ABS_LLM = '(abs:LLM OR abs:"Large Language Model")'
-    _ABS_RL = '(abs:RL OR abs:"Reinforcement Learning")'
+def build_arxiv_query(keyword_phrase: str) -> str:
+    """
+    为给定的关键词短语构建一个高级查询字符串，同时搜索摘要(abs)和标题(ti)。
+    - 对于特殊配置的短语，使用预设的 AND/OR 组合。
+    - 对于其他短语，将所有单词用 AND 连接，每个单词都同时匹配标题或摘要。
+    """
+    _ABS_OR_TI_LLM = '((abs:LLM OR ti:LLM) OR (abs:"Large Language Model" OR ti:"Large Language Model"))'
+    _ABS_OR_TI_RL = '((abs:RL OR ti:RL) OR (abs:"Reinforcement Learning" OR ti:"Reinforcement Learning"))'
+    
     _SPECIAL_PHRASE_CONFIG = {
-        "large language model agent rl": [_ABS_LLM, 'abs:agent', _ABS_RL],
-        "llm rft": [_ABS_LLM, 'abs:RFT'],
-        "llm reinforcement learning finetuning": [_ABS_LLM, _ABS_RL, 'abs:Finetuning'],
-        "large language model rl": [_ABS_LLM, _ABS_RL]
+        "large language model agent rl": [_ABS_OR_TI_LLM, '(abs:agent OR ti:agent)', _ABS_OR_TI_RL],
+        "llm rft": [_ABS_OR_TI_LLM, '(abs:RFT OR ti:RFT)'],
+        "llm reinforcement learning finetuning": [_ABS_OR_TI_LLM, _ABS_OR_TI_RL, '(abs:Finetuning OR ti:Finetuning)'],
+        "large language model rl": [_ABS_OR_TI_LLM, _ABS_OR_TI_RL]
     }
-    phrase_lower = keyword_phrase.lower()
+    
+    phrase_lower = keyword_phrase.lower().strip()
     if phrase_lower in _SPECIAL_PHRASE_CONFIG:
-        abs_parts = _SPECIAL_PHRASE_CONFIG[phrase_lower]
-        return f"({' AND '.join(abs_parts)})"
+        query_parts = _SPECIAL_PHRASE_CONFIG[phrase_lower]
+        return f"({' AND '.join(query_parts)})"
     else:
-        escaped_phrase = keyword_phrase.replace('"', '\\"')
-        return f'(abs:"{escaped_phrase}")'
+        words = [word for word in keyword_phrase.split() if word]
+        if not words:
+            return ""
+        
+        query_parts = [f'(abs:{word} OR ti:{word})' for word in words]
+        return f"({' AND '.join(query_parts)})"
 
 def search_arxiv_by_date_range(keywords, start_date_str, end_date_str, max_results, process_log):
-    """根据日期范围从 arXiv 检索论文。"""
+    """根据日期范围从 arXiv 检索论文，并为长关键词组执行补充搜索。"""
     unique_papers = {}
     try:
         filter_start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
@@ -50,10 +60,16 @@ def search_arxiv_by_date_range(keywords, start_date_str, end_date_str, max_resul
     process_log.append(f"INFO: 开始检索，日期范围: {start_date_str} 到 {end_date_str}")
     logging.info(f"开始检索，日期范围: {start_date_str} 到 {end_date_str}")
 
-    for keyword in keywords:
-        advanced_query = build_advanced_query_refactored(keyword)
-        process_log.append(f"INFO: 正在搜索关键词 '{keyword}' (查询: {advanced_query})")
-        logging.info(f"正在搜索关键词 '{keyword}' (查询: {advanced_query})")
+    def _perform_search(query_keyword, original_keyword_for_result):
+        advanced_query = build_arxiv_query(query_keyword)
+        if not advanced_query:
+            process_log.append(f"INFO: 查询关键词 '{query_keyword}' 为空，已跳过。")
+            return
+            
+        log_message_prefix = "补充" if query_keyword != original_keyword_for_result else ""
+        process_log.append(f"INFO: 正在执行{log_message_prefix}搜索 '{query_keyword}' (查询: {advanced_query})")
+        logging.info(f"正在执行{log_message_prefix}搜索 '{query_keyword}' (查询: {advanced_query})")
+        
         try:
             search = arxiv.Search(
                 query=advanced_query,
@@ -74,28 +90,38 @@ def search_arxiv_by_date_range(keywords, start_date_str, end_date_str, max_resul
                             "authors": [author.name for author in result.authors],
                             "arxiv_link": result.entry_id,
                             "pdf_link": result.pdf_url,
-                            "original_keyword": keyword
+                            "original_keyword": original_keyword_for_result
                         }
                         retrieved_count += 1
-            process_log.append(f"SUCCESS: 关键词 '{keyword}' 找到 {retrieved_count} 篇新论文。")
-            time.sleep(3) # Be nice to arXiv API
+            process_log.append(f"SUCCESS: {log_message_prefix}搜索 '{query_keyword}' 找到 {retrieved_count} 篇新论文。")
         except Exception as e:
-            logging.error(f"搜索关键词 '{keyword}' 时出错: {e}")
-            process_log.append(f"WARNING: 搜索关键词 '{keyword}' 时出错: {e}")
-            continue
+            logging.error(f"搜索关键词 '{query_keyword}' 时出错: {e}")
+            process_log.append(f"WARNING: 搜索关键词 '{query_keyword}' 时出错: {e}")
+
+    for keyword in keywords:
+        _perform_search(keyword, keyword)
+        time.sleep(3)
+
+        keyword_parts = keyword.split()
+        if len(keyword_parts) > 3:
+            supplementary_keyword = " ".join(keyword_parts[:-1])
+            process_log.append(f"INFO: 关键词 '{keyword}' 包含超过3个词，将执行一次补充搜索。")
+            
+            _perform_search(supplementary_keyword, keyword)
+            time.sleep(3)
 
     total_found = len(unique_papers)
     process_log.append(f"SUCCESS: 所有关键词检索完成，共找到 {total_found} 篇不重复的论文。")
     logging.info(f"所有关键词检索完成，共找到 {total_found} 篇不重复的论文。")
     return list(unique_papers.values())
 
+
 async def translate_one_abstract(aclient, abstract_en, target_language, semaphore):
     """使用 LLM 异步翻译单个摘要。"""
     if not abstract_en or not abstract_en.strip(): return ""
     async with semaphore:
         try:
-            # [修改点 0]：将具体的 prompt 内容替换为 "..."
-            prompt_content = "..."
+            prompt_content = f"Please translate the following academic abstract into {target_language}. Keep the original formatting and technical terms. Abstract: "
             response = await aclient.chat.completions.create(
                 model=MODEL_NAME,
                 messages=[
@@ -112,9 +138,9 @@ async def translate_one_abstract(aclient, abstract_en, target_language, semaphor
 
 def sanitize_filename_part(text: str) -> str:
     """清理字符串，使其可安全地用于文件名。"""
-    text = re.sub(r'[\s,]+', '_', text) # Replace spaces and commas with underscore
-    text = re.sub(r'[^\w\-_.]', '', text) # Remove all non-word, non-hyphen, non-underscore, non-dot characters
-    return text[:50] # Truncate to a reasonable length
+    text = re.sub(r'[\s,]+', '_', text)
+    text = re.sub(r'[^\w\-_.]', '', text)
+    return text[:50]
 
 async def run_arxiv_search_and_process(run_id: str, request_params: dict):
     """后台任务的主执行函数：搜索、翻译、保存。"""
@@ -149,7 +175,7 @@ async def run_arxiv_search_and_process(run_id: str, request_params: dict):
                 translate_one_abstract(aclient, paper['summary_en'], target_language, semaphore)
                 for paper in papers
             ]
-            translated_summaries = await asyncio.gather(*tasks, return_exceptions=True)
+            translated_summaries = await asyncio.gather(*translation_tasks, return_exceptions=True)
             
             for paper, translated in zip(papers, translated_summaries):
                 paper['summary_translated'] = translated if not isinstance(translated, Exception) else f"翻译失败: {translated}"
@@ -157,9 +183,8 @@ async def run_arxiv_search_and_process(run_id: str, request_params: dict):
         else:
             process_log.append("INFO: 无需翻译。")
             for paper in papers:
-                paper['summary_translated'] = "" # Add empty column for consistency
+                paper['summary_translated'] = ""
 
-        # 生成动态文件名
         topic_str = sanitize_filename_part("_".join(request_params['keywords']))
         lang_str = sanitize_filename_part(target_language) if target_language else "en"
         start_str = request_params['start_date']
@@ -198,7 +223,6 @@ async def run_arxiv_search_and_process(run_id: str, request_params: dict):
         process_log.append(f"❌ FATAL_ERROR: {e}")
         background_tasks[run_id].update({"status": "failed", "summary": process_log})
     finally:
-        # 清理临时工作目录
         if work_dir.exists():
             shutil.rmtree(work_dir)
             logging.info(f"Run ID {run_id}: 已清理临时工作目录。")
