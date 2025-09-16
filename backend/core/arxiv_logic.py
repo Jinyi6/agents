@@ -132,6 +132,8 @@ def search_arxiv_by_date_range(keywords, start_date_str, end_date_str, max_resul
             base_keywords = keyword_list[:num_top_60]
             optional_keywords = keyword_list[num_top_60:]
             
+            stage_name = f"补充搜索 (前60%)"
+            _perform_search(" ".join(base_keywords), original_query_str_for_log, stage_name)
             # Shuffle the optional keywords then iterate through them
             random.shuffle(optional_keywords) 
 
@@ -141,6 +143,7 @@ def search_arxiv_by_date_range(keywords, start_date_str, end_date_str, max_resul
                 stage_name = f"补充搜索 (前60% + 可选词 {i+1})"
                 _perform_search(supplementary_query, original_query_str_for_log, stage_name)
                 time.sleep(3)
+
 
     total_found = len(unique_papers)
     process_log.append(f"SUCCESS: 所有分层检索完成，共找到 {total_found} 篇不重复的论文。")
