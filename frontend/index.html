@@ -42,7 +42,7 @@
         .file-list-item {
             background-color: #1e293b; /* slate-800 */
         }
-          
+        
         .log-container {
             font-family: 'Menlo', 'Courier New', Courier, monospace;
             white-space: pre-wrap;
@@ -63,7 +63,7 @@
         .log-fatal { background-color: #be185d; color: white; font-weight: bold; border-radius: 4px; } 
 
         .section-hidden, .modal-hidden { display: none !important; }
-          
+        
         .progress-bar-animated {
             background-image: linear-gradient(45deg, rgba(255, 255, 255, .15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, .15) 50%, rgba(255, 255, 255, .15) 75%, transparent 75%, transparent);
             background-size: 1rem 1rem;
@@ -111,6 +111,10 @@
         .keyword-tag {
             background-color: #334155; /* slate-700 */
             color: #cbd5e1; /* slate-300 */
+            cursor: move; /* Change cursor to indicate draggable */
+        }
+        .keyword-tag.dragging {
+            opacity: 0.5;
         }
 
         /* Modal Styles */
@@ -183,7 +187,7 @@
                 <h2 class="text-5xl md:text-7xl font-black text-white leading-tight">Complex Tasks,<br> <span class="brand-gradient">Agent-Simplicity.</span></h2>
                 <p class="mt-6 text-lg text-slate-400 max-w-xl mx-auto">Why do it yourself when you can <span class="text-white font-medium">Do It by Agent</span>? DIA provides specialized AI agents that turn your complex goals into simple results. Let's get started.</p>
             </div>
-              
+            
             <div class="mt-20 flex flex-col lg:flex-row gap-12">
                 <div id="showcase-area" class="w-full lg:w-3/4">
                     <div id="latex-showcase" class="showcase-item">
@@ -362,7 +366,7 @@
             }
             window.scrollTo(0, 0);
         }
-          
+        
         function showAbout() {
             homeSection.classList.add('section-hidden');
             latexToolSection.classList.add('section-hidden');
@@ -533,11 +537,23 @@
                     <div class="text-center"><h2 class="text-4xl font-extrabold text-white">ACL: ArXivCooL</h2><p class="mt-2 text-slate-400">Search, translate, and download the latest arXiv papers.</p></div>
                     <div id="arxiv-upload-section" class="mt-10">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div><label class="font-semibold text-white">Keywords</label><div class="mt-2 flex items-center bg-slate-800 border border-slate-600 rounded-lg p-1"><input id="arxiv-keyword-input" type="text" class="flex-grow bg-transparent p-2 text-white focus:outline-none" placeholder="Press Enter to add"><button onclick="addArxivKeyword()" class="bg-cyan-500 hover:bg-cyan-400 rounded-md p-2 ml-2"><i data-lucide="plus" class="w-5 h-5"></i></button></div><div id="arxiv-keywords-container" class="mt-2 flex flex-wrap gap-2"></div></div>
+                            <div>
+                                <!-- [MODIFICATION] Added tooltip to Keywords label -->
+                                <div class="flex items-center gap-2">
+                                    <label class="font-semibold text-white">Keywords</label>
+                                    <div class="tooltip">
+                                        <i data-lucide="info" class="w-4 h-4 text-slate-400 cursor-pointer"></i>
+                                        <span class="tooltiptext"><b>Drag to reorder.</b> Priority is from left to right (most to least important). If more than 3 words are in a phrase, the last word may be dropped in a supplementary search.</span>
+                                    </div>
+                                </div>
+                                <div class="mt-2 flex items-center bg-slate-800 border border-slate-600 rounded-lg p-1"><input id="arxiv-keyword-input" type="text" class="flex-grow bg-transparent p-2 text-white focus:outline-none" placeholder="Press Enter to add"><button onclick="addArxivKeyword()" class="bg-cyan-500 hover:bg-cyan-400 rounded-md p-2 ml-2"><i data-lucide="plus" class="w-5 h-5"></i></button></div>
+                                <div id="arxiv-keywords-container" class="mt-2 flex flex-wrap gap-2"></div>
+                            </div>
                             <div><label class="font-semibold text-white">Target Language (Optional)</label><input id="arxiv-language-input" type="text" class="mt-2 w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none" placeholder="e.g. Chinese, Japanese"></div>
                             <div><label class="font-semibold text-white">Start Date</label><input id="arxiv-start-date" type="date" class="mt-2 w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none"></div>
                             <div><label class="font-semibold text-white">End Date</label><input id="arxiv-end-date" type="date" class="mt-2 w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-400 focus:outline-none"></div>
-                            <div class="md:col-span-2"><label for="arxiv-max-results" class="font-semibold text-white flex justify-between"><span>Max Results</span><span id="arxiv-max-results-value">10</span></label><input id="arxiv-max-results" type="range" min="1" max="200" value="10" class="mt-2 w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"></div>
+                            <!-- [MODIFICATION] Changed max results to 500 -->
+                            <div class="md:col-span-2"><label for="arxiv-max-results" class="font-semibold text-white flex justify-between"><span>Max Results</span><span id="arxiv-max-results-value">10</span></label><input id="arxiv-max-results" type="range" min="1" max="500" value="10" class="mt-2 w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"></div>
                         </div>
                         <button id="arxiv-start-btn" class="mt-8 w-full bg-cyan-400 text-slate-900 font-bold py-4 px-4 rounded-xl hover:bg-cyan-300 transition-all duration-300 text-lg glow-button">Start Search</button>
                     </div>
@@ -641,7 +657,7 @@
                         </div>
                     </div>
                 </div>`;
-                
+            
             // Load About page HTML
             aboutSection.innerHTML = `
                 <button onclick="showHome()" class="mb-8 flex items-center gap-2 text-slate-400 hover:text-white transition-colors"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Home</button>
@@ -835,6 +851,24 @@
             maxResultsValue.textContent = maxResultsSlider.value;
 
             document.getElementById('arxiv-start-btn').onclick = startArxivSearch;
+            
+            // [MODIFICATION] Setup drag-and-drop for keyword container
+            const keywordsContainer = document.getElementById('arxiv-keywords-container');
+            keywordsContainer.addEventListener('dragover', e => {
+                e.preventDefault();
+                const afterElement = getDragAfterElement(keywordsContainer, e.clientY);
+                const dragging = document.querySelector('.dragging');
+                if (afterElement == null) {
+                    keywordsContainer.appendChild(dragging);
+                } else {
+                    keywordsContainer.insertBefore(dragging, afterElement);
+                }
+            });
+            keywordsContainer.addEventListener('drop', e => {
+                e.preventDefault();
+                updateArxivKeywordOrder();
+            });
+
             renderArxivKeywords();
         }
 
@@ -853,6 +887,33 @@
             arxivKeywords = arxivKeywords.filter(k => k !== keywordToRemove);
             renderArxivKeywords();
         }
+        
+        // [NEW FUNCTION] Handle updating keyword order after drag-and-drop
+        function updateArxivKeywordOrder() {
+            const newOrder = [];
+            document.querySelectorAll('#arxiv-keywords-container .keyword-tag').forEach(tag => {
+                // Find the span that holds the keyword text, ignoring the button
+                const textSpan = tag.querySelector('span');
+                if(textSpan) newOrder.push(textSpan.textContent);
+            });
+            arxivKeywords = newOrder;
+            console.log("New keyword order:", arxivKeywords); // For debugging
+        }
+        
+        // [NEW FUNCTION] Helper to determine drop position
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.keyword-tag:not(.dragging)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
 
         function renderArxivKeywords() {
             const container = document.getElementById('arxiv-keywords-container');
@@ -860,7 +921,17 @@
             arxivKeywords.forEach(k => {
                 const tag = document.createElement('span');
                 tag.className = 'keyword-tag flex items-center gap-2 px-3 py-1 rounded-full text-sm';
-                tag.innerHTML = `<span>${k}</span><button onclick="removeArxivKeyword('${k}')"><i data-lucide="x" class="w-4 h-4 text-slate-400 hover:text-white"></i></button>`;
+                tag.innerHTML = `<span>${k}</span><button onclick="removeArxivKeyword('${k.replace(/'/g, "\\'")}')"><i data-lucide="x" class="w-4 h-4 text-slate-400 hover:text-white"></i></button>`;
+                
+                // [MODIFICATION] Add draggable properties and listeners
+                tag.draggable = true;
+                tag.addEventListener('dragstart', () => {
+                    tag.classList.add('dragging');
+                });
+                tag.addEventListener('dragend', () => {
+                    tag.classList.remove('dragging');
+                });
+
                 container.appendChild(tag);
             });
             lucide.createIcons();
