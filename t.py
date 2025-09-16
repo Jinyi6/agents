@@ -5,6 +5,8 @@ import os
 import asyncio
 import logging
 import re
+import math
+import random
 from datetime import datetime, date
 from pathlib import Path
 import shutil
@@ -46,7 +48,10 @@ def build_arxiv_query(keyword_phrase: str) -> str:
         return f"({' AND '.join(query_parts)})"
 
 def search_arxiv_by_date_range(keywords, start_date_str, end_date_str, max_results, process_log):
-    """根据日期范围从 arXiv 检索论文，并为长关键词组执行补充搜索。"""
+    """
+    根据日期范围从arXiv检索论文，采用分层降级搜索策略。
+    'keywords' 参数是一个按优先级排序的关键词列表。
+    """
     unique_papers = {}
     try:
         filter_start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
@@ -60,15 +65,14 @@ def search_arxiv_by_date_range(keywords, start_date_str, end_date_str, max_resul
     process_log.append(f"INFO: 开始检索，日期范围: {start_date_str} 到 {end_date_str}")
     logging.info(f"开始检索，日期范围: {start_date_str} 到 {end_date_str}")
 
-    def _perform_search(query_keyword, original_keyword_for_result):
+    def _perform_search(query_keyword, original_keyword_for_result, stage_name):
         advanced_query = build_arxiv_query(query_keyword)
         if not advanced_query:
-            process_log.append(f"INFO: 查询关键词 '{query_keyword}' 为空，已跳过。")
+            process_log.append(f"INFO: ({stage_name}) 查询关键词为空，已跳过。")
             return
             
-        log_message_prefix = "补充" if query_keyword != original_keyword_for_result else ""
-        process_log.append(f"INFO: 正在执行{log_message_prefix}搜索 '{query_keyword}' (查询: {advanced_query})")
-        logging.info(f"正在执行{log_message_prefix}搜索 '{query_keyword}' (查询: {advanced_query})")
+        process_log.append(f"INFO: ({stage_name}) 正在执行搜索 '{query_keyword}' (查询: {advanced_query})")
+        logging.info(f"({stage_name}) 正在执行搜索 '{query_keyword}' (查询: {advanced_query})")
         
         try:
             search = arxiv.Search(
@@ -93,26 +97,54 @@ def search_arxiv_by_date_range(keywords, start_date_str, end_date_str, max_resul
                             "original_keyword": original_keyword_for_result
                         }
                         retrieved_count += 1
-            process_log.append(f"SUCCESS: {log_message_prefix}搜索 '{query_keyword}' 找到 {retrieved_count} 篇新论文。")
+            process_log.append(f"SUCCESS: ({stage_name}) 搜索 '{query_keyword}' 找到 {retrieved_count} 篇新论文。")
         except Exception as e:
             logging.error(f"搜索关键词 '{query_keyword}' 时出错: {e}")
-            process_log.append(f"WARNING: 搜索关键词 '{query_keyword}' 时出错: {e}")
+            process_log.append(f"WARNING: ({stage_name}) 搜索 '{query_keyword}' 时出错: {e}")
 
-    for keyword in keywords:
-        _perform_search(keyword, keyword)
-        time.sleep(3)
+    # [核心修改]: 用新的分层逻辑替换旧的循环
+    keyword_list = keywords
+    num_keywords = len(keyword_list)
+    original_query_str_for_log = ", ".join(keyword_list)
 
-        keyword_parts = keyword.split()
-        if len(keyword_parts) > 3:
-            supplementary_keyword = " ".join(keyword_parts[:-1])
-            process_log.append(f"INFO: 关键词 '{keyword}' 包含超过3个词，将执行一次补充搜索。")
-            
-            _perform_search(supplementary_keyword, keyword)
+    if num_keywords == 0:
+        process_log.append("WARNING: 未提供任何关键词，任务终止。")
+        return []
+
+    # --- Stage 1: Primary search with all keywords ---
+    full_query = " ".join(keyword_list)
+    _perform_search(full_query, original_query_str_for_log, "主搜索 (全部关键词)")
+    time.sleep(3)
+
+    # --- Stage 2 & 3: Supplementary searches if N > 3 ---
+    if num_keywords > 3:
+        # Stage 2: Search with top 80% of keywords
+        num_top_80 = math.ceil(num_keywords * 0.8)
+        if num_top_80 < num_keywords:
+            top_80_keywords = keyword_list[:num_top_80]
+            top_80_query = " ".join(top_80_keywords)
+            _perform_search(top_80_query, original_query_str_for_log, "补充搜索 (前80%)")
             time.sleep(3)
 
+        # Stage 3: Searches with top 60% + one from the bottom 40%
+        num_top_60 = math.floor(num_keywords * 0.6)
+        if num_top_60 < num_keywords and num_top_60 > 0:
+            base_keywords = keyword_list[:num_top_60]
+            optional_keywords = keyword_list[num_top_60:]
+            
+            # Shuffle the optional keywords then iterate through them
+            random.shuffle(optional_keywords) 
+
+            for i, optional_keyword in enumerate(optional_keywords):
+                combined_list = base_keywords + [optional_keyword]
+                supplementary_query = " ".join(combined_list)
+                stage_name = f"补充搜索 (前60% + 可选词 {i+1})"
+                _perform_search(supplementary_query, original_query_str_for_log, stage_name)
+                time.sleep(3)
+
     total_found = len(unique_papers)
-    process_log.append(f"SUCCESS: 所有关键词检索完成，共找到 {total_found} 篇不重复的论文。")
-    logging.info(f"所有关键词检索完成，共找到 {total_found} 篇不重复的论文。")
+    process_log.append(f"SUCCESS: 所有分层检索完成，共找到 {total_found} 篇不重复的论文。")
+    logging.info(f"所有分层检索完成，共找到 {total_found} 篇不重复的论文。")
     return list(unique_papers.values())
 
 
